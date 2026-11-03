@@ -78,7 +78,7 @@ report = {
         "model": DEVICES["tv"]["model"],
         "ping_reachable": ping(DEVICES["tv"]["ip"]),
         "webos_api_reachable": tcp(DEVICES["tv"]["ip"], DEVICES["tv"]["control_port"]),
-        "power_state": "unknown_without_webos_pairing",
+        "power_state": "unknown",
         "mac_configured": bool(DEVICES["tv"].get("mac"))
     }
 }

@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 from agent_broker import AgentBroker
 from power_preview import PreviewStore
+from tv_power import classify_power_reply
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STATIC = ROOT / "web" / "static"
@@ -66,10 +67,25 @@ def status():
         )
         report = json.loads(r.stdout)
         report["tv"]["paired"] = paired()
+        # Ping/TCP only prove reachability. Ask paired webOS for the *screen*
+        # state; failed or unrecognized replies remain explicitly unknown.
+        report["tv"]["power_state"] = "unknown"
+        if report["tv"]["paired"] and report["tv"].get("webos_api_reachable"):
+            try:
+                report["tv"]["power_state"] = classify_power_reply(call_tv("get_power_state"))
+            except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired):
+                pass
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "0.4.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "0.4.1", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
+
+
+def invalidate_status_cache():
+    """Refresh read-only device state after accepted power-related actions."""
+    global _last_report
+    with _cache_lock:
+        _last_report = (0.0, {})
 
 
 def log_event(action, target, result):
@@ -99,13 +115,15 @@ def recent_history():
 def call_tv(method, argument=None):
     if not paired():
         raise ValueError("TV is not paired. Approve the pairing prompt on the LG first.")
-    if method not in {"volume_up", "volume_down", "set_mute", "get_volume", "get_current_app", "power_off"}:
+    if method not in {"volume_up", "volume_down", "set_mute", "get_volume", "get_current_app",
+                      "get_power_state", "turn_screen_on", "power_off"}:
         raise ValueError("Unsupported TV operation")
     args = [str(COMMAND), "-p", str(TV_DATABASE), "--log", "ERROR",
             DEVICE_INFO["tv"]["ip"], method]
     if argument is not None:
         args.append(str(argument))
-    r = subprocess.run(args, cwd=CONFIG, capture_output=True, text=True, timeout=16)
+    r = subprocess.run(args, cwd=CONFIG, capture_output=True, text=True,
+                       timeout=6 if method == "get_power_state" else 16)
     if r.returncode:
         raise RuntimeError("TV communication failed. Check that the TV is on and paired.")
     return r.stdout.strip()[:450]
@@ -249,7 +267,7 @@ def preview_response(result):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/0.4"
+    server_version = "UbuntuControl/0.4.1"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -325,7 +343,7 @@ class Handler(BaseHTTPRequestHandler):
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "0.4", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "0.4.1", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -424,6 +442,7 @@ class Handler(BaseHTTPRequestHandler):
                     subprocess.run([sys.executable, str(WOL_COMMAND), target, "--send"],
                                    capture_output=True, text=True, timeout=5, check=True)
                     log_event("wake", target, "packet_sent")
+                    invalidate_status_cache()
                     return self._json({"ok": True, "message": "Wake packet sent; device wake not yet confirmed"})
                 except Exception:
                     log_event("wake", target, "failed")
@@ -452,7 +471,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "TV did not approve pairing; turn the screen on and accept the connection prompt"}, 503)
         if path == "/api/tv/control":
             action = request.get("action")
-            allowed = {"volume_up", "volume_down", "mute", "unmute", "power_off"}
+            allowed = {"volume_up", "volume_down", "mute", "unmute", "screen_on", "power_off"}
             if action not in allowed:
                 return self._json({"error": "Action not allowed"}, 400)
             with _action_lock:
@@ -467,9 +486,13 @@ class Handler(BaseHTTPRequestHandler):
                         call_tv("set_mute", "false")
                     elif action == "power_off":
                         call_tv("power_off")
+                    elif action == "screen_on":
+                        call_tv("turn_screen_on")
                     else:
                         call_tv(action)
                     log_event(action, "tv", "ok")
+                    if action in {"power_off", "screen_on"}:
+                        invalidate_status_cache()
                     return self._json({"ok": True, "message": "TV command sent"})
                 except Exception:
                     log_event(action, "tv", "failed")
@@ -480,7 +503,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v0.4 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v0.4.1 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 

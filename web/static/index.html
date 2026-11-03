@@ -43,7 +43,7 @@
       <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
       <div class="sidebar-bottom">
         <span class="privacy-dot"></span> Private via Tailscale
-        <div class="side-version">Ubuntu Control v0.4</div>
+        <div class="side-version">Ubuntu Control v0.4.1</div>
       </div>
     </nav>
     <main id="main">
@@ -79,21 +79,39 @@
 
         <div class="section-title-row power-heading"><div><h2>Power</h2><p>Device power controls</p></div></div>
         <div class="power-grid">
-          <article class="power-card panel">
-            <div class="power-card-head"><div class="power-symbol ubuntu-power"><img src="/assets/ubuntu-logo.svg" alt=""></div><div><h3>Ubuntu Desktop</h3><p id="ubuntu-power-status">Checking power state…</p></div></div>
-            <div class="power-actions">
-              <button class="btn btn-primary" type="button" data-action="wake-desktop" id="desktop-on">Power on</button>
-              <button class="btn btn-outline" type="button" id="desktop-off" disabled title="Shutdown control is not connected yet">Power off</button>
+          <article class="power-card panel" id="desktop-power-card" data-power-state="unknown">
+            <div class="power-card-head">
+              <div class="power-symbol ubuntu-power is-unknown" id="desktop-power-symbol" aria-hidden="true"><img id="desktop-power-icon" src="/assets/ubuntu-off.svg" alt=""></div>
+              <div class="power-card-identity">
+                <h3>Ubuntu Desktop</h3>
+                <p id="ubuntu-power-status">Checking Ubuntu…</p>
+              </div>
+              <span class="power-state-chip is-unknown" id="desktop-power-badge">Checking</span>
             </div>
-            <small class="power-note" id="desktop-power-note">Wake-on-LAN available. Shutdown requires the protected command channel.</small>
+            <div class="power-actions">
+              <button class="btn power-toggle" type="button" data-action="wake-desktop" id="desktop-power-button" disabled aria-label="Checking Ubuntu power">
+                <img src="/assets/power.svg" alt="" aria-hidden="true">
+                <span id="desktop-power-label">Checking status…</span>
+              </button>
+            </div>
+            <small class="power-note" id="desktop-power-note">Only confirmed Ubuntu telemetry can establish that the computer is on.</small>
           </article>
-          <article class="power-card panel">
-            <div class="power-card-head"><div class="power-symbol tv-power"><img src="/assets/monitor.svg" alt=""></div><div><h3>LG Display</h3><p id="tv-power-status">Checking monitor…</p></div></div>
-            <div class="power-actions">
-              <button class="btn btn-primary" type="button" data-action="wake-tv" id="tv-on">Power on</button>
-              <button class="btn btn-outline" type="button" data-action="tv-power-off" id="tv-off" disabled>Standby</button>
+          <article class="power-card panel" id="tv-power-card" data-power-state="unknown">
+            <div class="power-card-head">
+              <div class="power-symbol tv-power is-unknown" id="tv-power-symbol" aria-hidden="true"><img id="tv-power-icon" src="/assets/monitor-off.svg" alt=""></div>
+              <div class="power-card-identity">
+                <h3>LG Display</h3>
+                <p id="tv-power-status">Checking display…</p>
+              </div>
+              <span class="power-state-chip is-unknown" id="tv-power-badge">Checking</span>
             </div>
-            <small class="power-note" id="tv-power-note">Standby becomes available after LG webOS pairing.</small>
+            <div class="power-actions">
+              <button class="btn power-toggle" type="button" data-action="wake-tv" id="tv-power-button" disabled aria-label="Checking LG display power">
+                <img src="/assets/power.svg" alt="" aria-hidden="true">
+                <span id="tv-power-label">Checking status…</span>
+              </button>
+            </div>
+            <small class="power-note" id="tv-power-note">webOS power status is checked separately from network connectivity.</small>
           </article>
         </div>
         <p class="power-disclaimer">Wake-on-LAN sends a wake packet; successful screen or computer power-on must be confirmed separately.</p>

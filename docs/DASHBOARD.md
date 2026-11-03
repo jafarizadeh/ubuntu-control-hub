@@ -7,16 +7,17 @@ Raspberry Pi is the always-on connection hub, not the primary device shown on th
 ## Dashboard
 
 1. Ubuntu overview: real CPU, GPU, estimated used RAM, OS, hostname and uptime.
-2. Power: separate On and Off/Standby actions for Ubuntu Desktop and LG Display.
+2. Power: one stateful SVG action per device. The label, badge and on/off icon change only with verified Ubuntu or webOS status.
 3. Optional metric tiles: CPU/GPU temperature, RAM available, free disk, fan RPM, uptime, GPU memory, networking, sound and current CPUWM profile.
 
 The Customize action selects visible tiles. Preferences are stored on the viewing device in localStorage and can be reset; they never alter actual sensor measurements. Missing/stale Ubuntu telemetry is cleared, not replaced with Raspberry Pi measurements.
 
 Actions:
-- Ubuntu Power on: existing Wake-on-LAN packet, not confirmation of successful power-on.
+- Ubuntu with a fresh signed heartbeat: show On and a single disabled Power off unavailable button (no unprotected shutdown).
+- Ubuntu not reachable: show Not reachable, never claim it is confirmed Off, and offer Send wake signal if a MAC address is configured.
 - Ubuntu Power off: disabled until an authenticated command channel with confirmation and active-job protections exists.
-- LG Power on: existing Wake-on-LAN packet.
-- LG Standby: available after one-time LG webOS pairing.
+- LG webOS Active: show On and only Standby display. Screen Off: offer the paired screen-on API. Verified Suspend / Power Off: offer Wake-on-LAN. If the power state is unverified, show Unknown or Not reachable; never claim that ping equals screen-on.
+- LG Standby: enabled only when the paired webOS get_power_state read-only query verifies Active. A new state is checked after the request; success of sending a command is not proof of a completed power transition.
 
 ## Control Center
 

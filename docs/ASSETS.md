@@ -6,11 +6,14 @@ serve meaningful UI functions.
 
 | Repository asset | Owner-supplied source filename | Usage |
 | --- | --- | --- |
-| ubuntu-logo.svg | ubuntu-svgrepo-com.svg | Ubuntu status and power |
-| monitor.svg | monitor-television-svgrepo-com.svg | LG display status and controls |
+| ubuntu-logo.svg | ubuntu-svgrepo-com.svg | Ubuntu status and base logo |
+| ubuntu-on.svg / ubuntu-off.svg | derived from ubuntu-svgrepo-com.svg | Active or muted Ubuntu power visual states |
+| monitor.svg | monitor-television-svgrepo-com.svg | LG display controls |
+| monitor-on.svg / monitor-off.svg | derived from monitor-television-svgrepo-com.svg | Verified on/off display visual states |
 | cpu.svg | cpu-free-material-2-svgrepo-com.svg | CPU & GPU Workload Manager |
 | wifi.svg | wifi-svgrepo-com.svg | Connected network |
 | wifi-off.svg | wifi-slash-svgrepo-com.svg | Disconnected or unavailable network |
+| power.svg | power-button-svgrepo-com.svg | Single power action per device |
 
 The copied assets were sanitized for browser use: XML declarations, document
 type references, CSS style blocks, event handlers and unsupported/external

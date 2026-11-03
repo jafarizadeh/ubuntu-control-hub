@@ -57,10 +57,14 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn('id="hero-cpu"', dashboard)
         self.assertIn('id="hero-memory"', dashboard)
         self.assertIn('id="hero-gpu"', dashboard)
-        self.assertIn('id="desktop-on"', dashboard)
-        self.assertIn('id="desktop-off" disabled', dashboard)
-        self.assertIn('id="tv-on"', dashboard)
-        self.assertIn('id="tv-off" disabled', dashboard)
+        self.assertEqual(dashboard.count('class="btn power-toggle"'), 2)
+        self.assertIn('id="desktop-power-button" disabled', dashboard)
+        self.assertIn('id="tv-power-button" disabled', dashboard)
+        self.assertIn('id="desktop-power-badge"', dashboard)
+        self.assertIn('id="tv-power-badge"', dashboard)
+        self.assertNotIn('id="desktop-on"', dashboard)
+        self.assertNotIn('id="tv-on"', dashboard)
+        self.assertNotIn('id="tv-off"', dashboard)
         self.assertLess(dashboard.index('class="power-grid"'), dashboard.index('id="metrics-grid"'))
         self.assertNotIn("192" + ".168.", html)
 
@@ -76,7 +80,7 @@ class RepositorySmokeTests(unittest.TestCase):
 
     def test_control_panel_is_honest_about_unsupported_actions(self):
         html = (ROOT / "web/static/index.html").read_text()
-        for button in ("desktop-off", "volume-slider", "mute-toggle", "apply-profile"):
+        for button in ("desktop-power-button", "volume-slider", "mute-toggle", "apply-profile"):
             self.assertIn('id="' + button + '"', html)
         self.assertIn("Manage GPT remote access", html)
         self.assertIn("CPU & GPU Workload Manager", html)
@@ -89,7 +93,7 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn('id="command-feedback"', html)
         self.assertIn('id="apply-volume" type="button" disabled', html)
         self.assertIn('id="apply-profile" type="button" disabled', html)
-        self.assertIn('id="desktop-off" disabled', html)
+        self.assertIn('id="desktop-power-button" disabled', html)
         self.assertIn('/api/control/capabilities', js)
         self.assertIn('/api/commands', js)
         self.assertIn('commandAuthorizedAndReady()', js)
@@ -99,7 +103,9 @@ class RepositorySmokeTests(unittest.TestCase):
 
     def test_user_supplied_svg_assets_are_local_and_inert(self):
         import xml.etree.ElementTree as ET
-        names = ("ubuntu-logo.svg", "monitor.svg", "wifi.svg", "wifi-off.svg", "cpu.svg")
+        names = ("ubuntu-logo.svg", "monitor.svg", "wifi.svg", "wifi-off.svg", "cpu.svg",
+                 "power.svg", "ubuntu-on.svg", "ubuntu-off.svg",
+                 "monitor-on.svg", "monitor-off.svg")
         html = (ROOT / "web/static/index.html").read_text()
         js = (ROOT / "web/static/app.js").read_text()
         worker = (ROOT / "web/static/sw.js").read_text()
@@ -126,6 +132,27 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn('id="network-control-icon"', html)
         self.assertIn("/assets/wifi-off.svg", js)
 
+    def test_one_power_button_per_device_and_independent_state_icons(self):
+        html = (ROOT / "web/static/index.html").read_text()
+        js = (ROOT / "web/static/app.js").read_text()
+        css = (ROOT / "web/static/style.css").read_text()
+        dashboard = html.split('id="view-dashboard"', 1)[1].split('id="view-control"', 1)[0]
+        self.assertEqual(dashboard.count('class="btn power-toggle"'), 2)
+        self.assertIn('id="desktop-power-icon"', dashboard)
+        self.assertIn('id="tv-power-icon"', dashboard)
+        self.assertIn('/assets/power.svg', dashboard)
+        self.assertIn('function renderDevicePower(', js)
+        self.assertIn('function renderPowerUnavailable(', js)
+        self.assertIn('function setPowerCard(', js)
+        self.assertIn('tv.power_state', js)
+        self.assertIn('"tv-screen-on"', js)
+        self.assertIn('Wake-on-LAN sends a signal', js)
+        self.assertIn('Network reachability is not enough', js)
+        self.assertIn('.power-toggle.is-standby', css)
+        self.assertIn('.power-symbol.is-unknown', css)
+        self.assertNotIn('id="desktop-off"', dashboard)
+        self.assertNotIn('id="tv-off"', dashboard)
+
     def test_power_safety_summaries_are_read_only(self):
         html = (ROOT / "web/static/index.html").read_text()
         js = (ROOT / "web/static/app.js").read_text()
@@ -138,7 +165,7 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn('id="power-safety-count"', html)
         self.assertIn('put("power-safety-count"', js)
 
-        self.assertIn('id="desktop-off" disabled', html)
+        self.assertIn('id="desktop-power-button" disabled', html)
 
 
 if __name__ == "__main__":

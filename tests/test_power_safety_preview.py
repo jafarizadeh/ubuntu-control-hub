@@ -442,7 +442,7 @@ class EndpointTests(unittest.TestCase):
         js = (ROOT / "web/static/app.js").read_text()
         dashboard, control = html.split('id="view-control"', 1)
         self.assertNotIn('id="power-preview-card"', dashboard)
-        self.assertIn('id="desktop-off" disabled', dashboard)
+        self.assertIn('id="desktop-power-button" disabled', dashboard)
         self.assertIn('id="power-preview-card"', control)
         self.assertIn("Simulation only — will NOT turn off or restart Ubuntu.", control)
         self.assertIn('data.remaining_seconds', js)

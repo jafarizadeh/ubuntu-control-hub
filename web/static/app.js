@@ -251,6 +251,118 @@ function paintUbuntu(report) {
   }
 }
 
+/**
+ * A single power action is shown for each device. "Reachable" never means
+ * the LG screen is on, and a missing Ubuntu heartbeat never proves power off.
+ */
+function setPowerCard(device, model) {
+  const name = device === "desktop" ? "Ubuntu Desktop" : "LG Display";
+  const state = model.state === "on" ? "on" : model.state === "off" ? "off" : "unknown";
+  const card = el(device + "-power-card");
+  const badge = el(device + "-power-badge");
+  const symbol = el(device + "-power-symbol");
+  const button = el(device + "-power-button");
+  const label = model.label;
+  card.dataset.powerState = state;
+  symbol.classList.toggle("is-unknown", state === "unknown");
+  symbol.classList.toggle("is-off", state === "off");
+  symbol.classList.toggle("is-on", state === "on");
+  const filename = device === "desktop" ? "ubuntu" : "monitor";
+  el(device + "-power-icon").src = "/assets/" + filename + "-" + (state === "on" ? "on" : "off") + ".svg";
+  badge.textContent = model.badge;
+  badge.className = "power-state-chip is-" + state;
+  put(device === "desktop" ? "ubuntu-power-status" : "tv-power-status", model.detail);
+  put(device + "-power-label", label);
+  put(device + "-power-note", model.note);
+  button.dataset.action = model.action || "";
+  button.disabled = !model.action;
+  button.className = "btn power-toggle " + (model.action ? (model.action === "tv-power-off" ? "is-standby" : "is-wake") : "is-locked");
+  button.title = model.note;
+  button.setAttribute("aria-label", name + ": " + label + ". " + model.badge);
+}
+
+function renderPowerUnavailable() {
+  setPowerCard("desktop", {
+    state: "unknown", badge: "Unknown", detail: "Hub connection unavailable",
+    label: "Power unavailable", action: null,
+    note: "Connect to the private Raspberry Pi Hub to refresh Ubuntu power status.",
+  });
+  setPowerCard("tv", {
+    state: "unknown", badge: "Unknown", detail: "Hub connection unavailable",
+    label: "Power unavailable", action: null,
+    note: "Connect to the private Raspberry Pi Hub to refresh LG power status.",
+  });
+}
+
+function renderDevicePower(desktop, tv, ubuntuFresh) {
+  if (ubuntuFresh) {
+    setPowerCard("desktop", {
+      state: "on", badge: "On", detail: "Online · verified Ubuntu telemetry",
+      label: "Power off unavailable", action: null,
+      note: "Ubuntu is running. Shutdown remains locked to protect Atlas, unsaved work and active jobs.",
+    });
+  } else if (desktop.ping_reachable) {
+    setPowerCard("desktop", {
+      state: "unknown", badge: "Unverified", detail: "Network reachable · agent offline",
+      label: "Verify Ubuntu status", action: null,
+      note: "A ping does not prove the operating system is ready. No power action is offered.",
+    });
+  } else {
+    const canWake = desktop.mac_configured === true;
+    setPowerCard("desktop", {
+      state: "unknown", badge: "Not reachable", detail: "No verified Ubuntu heartbeat",
+      label: canWake ? "Send wake signal" : "Power unavailable",
+      action: canWake ? "wake-desktop" : null,
+      note: canWake
+        ? "Wake-on-LAN sends a packet; it does not confirm the computer was off or has turned on."
+        : "Wake-on-LAN is not configured. A missing heartbeat is not proof of power off.",
+    });
+  }
+
+  const reachable = Boolean(tv.ping_reachable && tv.webos_api_reachable);
+  const paired = tv.paired === true;
+  const known = paired && reachable ? tv.power_state : "unknown";
+  if (known === "on") {
+    setPowerCard("tv", {
+      state: "on", badge: "On", detail: "Screen active · verified by LG webOS",
+      label: "Standby display", action: "tv-power-off",
+      note: "Send LG standby after confirmation. The next webOS report verifies the result.",
+    });
+  } else if (known === "screen_off") {
+    setPowerCard("tv", {
+      state: "off", badge: "Screen off", detail: "Display dark · verified by LG webOS",
+      label: "Turn screen on", action: "tv-screen-on",
+      note: "Use the paired webOS screen-on command; this is not Wake-on-LAN.",
+    });
+  } else if (known === "off") {
+    const canWake = tv.mac_configured === true;
+    setPowerCard("tv", {
+      state: "off", badge: "Standby", detail: "Power state reported by LG webOS",
+      label: canWake ? "Turn on display" : "Wake unavailable",
+      action: canWake ? "wake-tv" : null,
+      note: "Wake-on-LAN sends a signal. Screen power-on is only confirmed after a new webOS report.",
+    });
+  } else if (!reachable) {
+    const canWake = tv.mac_configured === true;
+    setPowerCard("tv", {
+      state: "unknown", badge: "Not reachable", detail: "LG screen state unverified",
+      label: canWake ? "Send wake signal" : "Power unavailable",
+      action: canWake ? "wake-tv" : null,
+      note: "LG did not answer. Wake-on-LAN is available, but the display may not actually be off.",
+    });
+  } else {
+    setPowerCard("tv", {
+      state: "unknown", badge: "Unverified",
+      detail: paired ? "Connected · webOS state unavailable" : "Connected · pairing required",
+      label: paired ? "Refresh to verify" : "Pair LG in Control",
+      action: null,
+      note: paired
+        ? "Network reachability is not enough. The screen must report its power state."
+        : "Complete LG webOS pairing in Control before standby can be used.",
+    });
+  }
+}
+
 function renderStatus(data) {
   app.lastStatus = data;
   const desktop = data.desktop || {};
@@ -274,18 +386,7 @@ function renderStatus(data) {
     put("updated-at", "No recent telemetry");
   }
   const tvReachable = Boolean(tv.ping_reachable && tv.webos_api_reachable);
-  put("ubuntu-power-status", fresh ? "Online · signed telemetry" :
-    desktop.ping_reachable ? "Network reachable · agent offline" : "Offline / not responding");
-  el("desktop-on").disabled = Boolean(fresh);
-  put("desktop-power-note", fresh
-    ? "Shutdown is not yet connected; protected actions will be added separately."
-    : "Wake-on-LAN can send a packet. Shutdown is not yet connected.");
-  put("tv-power-status", tvReachable ? "Network reachable · screen state unknown" : "Not reachable");
-  el("tv-on").disabled = false;
-  el("tv-off").disabled = !(tvReachable && tv.paired);
-  put("tv-power-note", tv.paired
-    ? "Standby uses paired LG webOS. Confirm device state after sending."
-    : "Standby control requires LG webOS pairing.");
+  renderDevicePower(desktop, tv, Boolean(fresh));
   put("tv-control-capability", tv.paired ? "Paired" : "Pairing needed");
   el("tv-control-capability").classList.toggle("online", Boolean(tv.paired));
   el("pair-tv-btn").hidden = Boolean(tv.paired);
@@ -315,11 +416,7 @@ async function refreshStatus(manual = false) {
     setTag("desktop-state", "Not connected", false);
     put("desktop-agent-state", "Cannot reach the private Raspberry Pi Hub");
     put("updated-at", "Connection unavailable");
-    put("ubuntu-power-status", "Connection unavailable");
-    put("tv-power-status", "Connection unavailable");
-    el("desktop-on").disabled = true;
-    el("tv-on").disabled = true;
-    el("tv-off").disabled = true;
+    renderPowerUnavailable();
     el("pair-tv-btn").disabled = true;
     document.querySelectorAll("#tv-remote-controls [data-action]").forEach((button) => { button.disabled = true; });
     syncControls();
@@ -349,6 +446,7 @@ async function executeAction(name, button) {
     "wake-desktop": {path: "/api/wake", payload: {target: "desktop"}, label: "Ubuntu wake request"},
     "wake-tv": {path: "/api/wake", payload: {target: "tv"}, label: "LG wake request"},
     "tv-power-off": {path: "/api/tv/control", payload: {action: "power_off"}, label: "LG standby request"},
+    "tv-screen-on": {path: "/api/tv/control", payload: {action: "screen_on"}, label: "LG screen-on request"},
     "pair-tv": {path: "/api/tv/pair", payload: {}, label: "LG pairing"},
     "tv-volume-up": {path: "/api/tv/control", payload: {action: "volume_up"}, label: "TV volume up"},
     "tv-volume-down": {path: "/api/tv/control", payload: {action: "volume_down"}, label: "TV volume down"},

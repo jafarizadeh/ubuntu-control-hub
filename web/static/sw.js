@@ -1,6 +1,6 @@
 "use strict";
-const CACHE = "ubuntu-control-shell-v10-compact-safety";
-const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/icon.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest", "/assets/ubuntu-logo.svg", "/assets/monitor.svg", "/assets/cpu.svg", "/assets/wifi.svg", "/assets/wifi-off.svg"];
+const CACHE = "ubuntu-control-shell-v11-stateful-power";
+const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/icon.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest", "/assets/ubuntu-logo.svg", "/assets/monitor.svg", "/assets/cpu.svg", "/assets/wifi.svg", "/assets/wifi-off.svg", "/assets/power.svg", "/assets/ubuntu-on.svg", "/assets/ubuntu-off.svg", "/assets/monitor-on.svg", "/assets/monitor-off.svg"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
 });

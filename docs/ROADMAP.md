@@ -6,7 +6,7 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] Raspberry Pi hub uses localhost and systemd auto-start.
 - [x] Tailscale private HTTPS Serve; no Funnel.
 - [x] English/LTR/light Ubuntu-first Dashboard (no Raspberry Pi metrics on home screen).
-- [x] Separate Ubuntu and LG power cards; live status and disabled actions are explicit.
+- [x] Separate Ubuntu and LG power cards with a single contextual SVG action per device; On, Off and Unknown visuals are distinct, and disabled actions are explicit.
 - [x] Per-browser metric visibility preferences (localStorage) and offline/stale data handling.
 - [x] Control tab for audio, network, CPUWM, app/file management, remote/GPT, and LG.
 - [x] Origin and CSRF checks on command requests.
@@ -42,7 +42,8 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 ## P1: LG webOS TV
 - [x] LAN/webOS reachability probes.
 - [x] Send a TV Wake-on-LAN packet.
-- [ ] Confirm screen-on state (reachable network is insufficient).
+- [x] Read-only LG webOS power-state query when paired; Active confirms screen-on, ambiguous replies remain Unknown.
+- [ ] Verify real LG standby → wake sequence end to end without disrupting active use.
 - [ ] One-time TV webOS pairing with on-screen approval.
 - [ ] Volume, mute and standby controls after pairing.
 - [ ] HDMI input selection, app launch and verified command results.
