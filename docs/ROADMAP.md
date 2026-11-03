@@ -29,7 +29,9 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] Live CPU, GPU, RAM, disk, temperature, fans and uptime telemetry.
 - [ ] Advanced per-interface network telemetry.
 - [ ] Protected shutdown and restart with explicit confirmation.
-- [ ] Shutdown timer, remaining time display, cancellation.
+- [x] Preview-only timer, server remaining-time display, persistence and cancellation (no execution).
+- [x] Read-only power safety: Atlas, shutdown inhibitors and best-effort workload categories; unknown data blocks.
+- [ ] Real timer execution after explicit future approval and activation gates.
 - [ ] Service controls: allowlisted systemd start/stop/restart.
 - [ ] Read-only processes, long-running jobs, logs and errors.
 - [ ] Approved updates, backups, file transfer and limited energy controls.
@@ -60,4 +62,4 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 ## Approval gate
 No real system shutdown, restart, package update, fan override or disruptive job action without explicit approval, preflight checks and a rollback plan. Test dry-runs before enabling new controls.
 
-Next focus: verify sound and CPUWM command receipts from iPhone, then design safe shutdown/restart/timers with active-work checks, LG pairing, app/terminal operations, and automation.
+Current power controls are simulation only and have not been deployed by this iteration. Next activation gates: explicit future approval for real actions, a second confirmation, a fresh safety check at the deadline, verified CPUWM active-job checks without bypassing the manager, and protection for unsaved desktop work. Never perform a blind shutdown of unsaved work. Cancellation and failure behavior must be verified before any real power execution is enabled. Continue iPhone verification of sound/CPUWM receipts, LG pairing and other remote operations separately.

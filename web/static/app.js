@@ -301,10 +301,12 @@ async function refreshStatus(manual = false) {
   el("refresh-btn").disabled = true;
   try {
     renderStatus(await api("/api/status"));
+    if (app.tab === "control") await refreshPowerPreview();
     syncControls();
     if (manual) toast("Ubuntu status refreshed.");
   } catch {
     app.lastStatus = null;
+    clearPowerPreview();
     paintWithoutUbuntu();
     setConnectionState("hub-offline");
     setTag("desktop-state", "Not connected", false);
@@ -424,6 +426,7 @@ async function loadHistory() {
 async function init() {
   initCustomization();
   initCommandControls();
+  initPowerPreview();
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
   });
@@ -482,6 +485,7 @@ async function refreshControlAccess() {
     app.canControl = false;
   }
   syncControls();
+  await refreshPowerPreview();
 }
 
 function feedback(message, level = "") {
@@ -578,3 +582,75 @@ function initCommandControls() {
 
 
 document.addEventListener("DOMContentLoaded", init);
+
+
+let previewBusy = false;
+let previewState = null;
+
+function syncPreviewControls() {
+  el("power-preview-create").disabled = !app.canControl || previewBusy || previewState === "draft";
+  el("power-preview-cancel").disabled = !app.canControl || previewBusy || previewState !== "draft";
+}
+
+function clearPowerPreview() {
+  previewState = null;
+  put("power-safety-status", "Safety data unavailable — power actions blocked");
+  el("power-safety-details").replaceChildren();
+  put("power-preview-status", "Preview unavailable — refresh to check server state");
+  syncPreviewControls();
+}
+
+function paintPowerPreview(data) {
+  if (data.preview_only !== true || data.will_execute !== false) throw new Error("Invalid preview response");
+  previewState = data.state;
+  const safety = data.safety || {};
+  put("power-safety-status", "Blocked: no power action will be performed. Safety: " + (safety.status || "unknown"));
+  const list = el("power-safety-details");
+  list.replaceChildren();
+  for (const text of [...(safety.blocked_reasons || []), ...(safety.warnings || [])]) {
+    const item = document.createElement("li");
+    item.textContent = text;
+    list.append(item);
+  }
+  put("power-preview-status", "Simulation: " + data.state + (data.action ? " · " + data.action : "")
+    + " · " + data.remaining_seconds + " seconds remaining (server reading at "
+    + new Date(data.server_time * 1000).toLocaleTimeString("en-GB") + ")");
+  syncPreviewControls();
+}
+
+async function refreshPowerPreview() {
+  if (previewBusy) return;
+  if (!app.canControl) { clearPowerPreview(); return; }
+  try { paintPowerPreview(await api("/api/power/preview")); }
+  catch { clearPowerPreview(); }
+}
+
+async function changePowerPreview(cancel) {
+  if (previewBusy || !app.canControl) return;
+  const value = el("power-preview-delay").value;
+  if (!cancel && (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 240)) {
+    toast("Choose an integer delay from 1 to 240 minutes.", true);
+    return;
+  }
+  previewBusy = true;
+  syncPreviewControls();
+  try {
+    if (!app.session) app.session = await api("/api/session");
+    paintPowerPreview(await api(cancel ? "/api/power/cancel" : "/api/power/preview", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "X-UC-CSRF": app.session.csrf},
+      body: JSON.stringify(cancel ? {} : {action: el("power-preview-action").value, delay_minutes: Number(value)}),
+    }));
+  } catch (error) {
+    clearPowerPreview();
+    toast(error.message, true);
+  } finally {
+    previewBusy = false;
+    await refreshPowerPreview();
+  }
+}
+
+function initPowerPreview() {
+  el("power-preview-create").addEventListener("click", () => changePowerPreview(false));
+  el("power-preview-cancel").addEventListener("click", () => changePowerPreview(true));
+}

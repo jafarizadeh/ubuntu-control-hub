@@ -127,6 +127,22 @@
         <div class="control-section-head"><h2>System controls</h2><span class="section-helper" id="control-access">Checking operator access…</span></div>
         <div class="command-feedback" id="command-feedback" role="status" aria-live="polite" hidden></div>
         <div class="control-grid">
+          <article class="control-card panel" id="power-preview-card">
+            <div class="control-card-header"><div class="control-icon">◷</div><div><h3>Power safety &amp; timer</h3><p>Read-only safety and timer simulation</p></div></div>
+            <p class="control-note">Simulation only — will NOT turn off or restart Ubuntu.</p>
+            <p id="power-safety-status" role="status">Safety data unavailable</p>
+            <ul id="power-safety-details"></ul>
+            <label class="field-label" for="power-preview-action">Simulation mode</label>
+            <select id="power-preview-action"><option value="shutdown">Shutdown preview</option><option value="restart">Restart preview</option></select>
+            <label class="field-label" for="power-preview-delay">Delay in minutes (1–240)</label>
+            <input id="power-preview-delay" type="number" min="1" max="240" step="1" value="15">
+            <div class="inline-actions">
+              <button class="btn btn-primary" id="power-preview-create" type="button" disabled>Preview timer</button>
+              <button class="btn btn-outline" id="power-preview-cancel" type="button" disabled>Cancel preview</button>
+            </div>
+            <p id="power-preview-status" role="status" aria-live="polite">Preview unavailable</p>
+            <p class="control-note">Remaining time comes from the server on refresh. Elapsed previews never execute.</p>
+          </article>
           <article class="control-card panel">
             <div class="control-card-header"><div class="control-icon">♫</div><div><h3>Sound</h3><p>Ubuntu audio output</p></div><span class="feature-state" id="audio-capability">Read only</span></div>
             <div class="setting-line"><span>Output volume</span><strong id="control-volume">—</strong></div>

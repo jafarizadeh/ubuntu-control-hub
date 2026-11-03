@@ -1,0 +1,134 @@
+"""Conservative, read-only power preflight. Never authorizes execution."""
+from datetime import datetime, timezone
+import os
+import selectors
+import subprocess
+import time
+
+ATLAS = ["/usr/bin/systemctl", "--user", "show", "twt-roadmap-atlas.service",
+         "--property=LoadState,ActiveState,SubState", "--no-pager"]
+INHIBITORS = ["/usr/bin/systemd-inhibit", "--list", "--no-pager"]
+PROCESSES = ["/usr/bin/ps", "-e", "-o", "comm="]
+LIMIT = 32768
+
+
+def read_command(args):
+    """Fixed readers only; bound bytes in memory and wall time, discard stderr."""
+    if args not in (ATLAS, INHIBITORS, PROCESSES):
+        raise ValueError("Reader not allowed")
+    try:
+        with subprocess.Popen(args, shell=False, stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL,
+                              env={**os.environ, "LC_ALL": "C", "SYSTEMD_COLORS": "0"}) as child:
+            try:
+                output = bytearray()
+                deadline = time.monotonic() + 3
+                with selectors.DefaultSelector() as selector:
+                    selector.register(child.stdout, selectors.EVENT_READ)
+                    while True:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0 or not selector.select(remaining):
+                            return None
+                        chunk = os.read(child.stdout.fileno(), min(4096, LIMIT + 1 - len(output)))
+                        if not chunk:
+                            break
+                        output.extend(chunk)
+                        if len(output) > LIMIT:
+                            return None
+                if child.wait(timeout=max(0.01, deadline - time.monotonic())) != 0:
+                    return None
+                return output.decode("utf-8", errors="strict")
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                    child.wait()
+    except (OSError, UnicodeError, subprocess.TimeoutExpired):
+        return None
+
+
+def parse_atlas(text):
+    if text is None:
+        return "unknown"
+    fields = {}
+    for line in text.splitlines():
+        key, sep, value = line.partition("=")
+        if not sep or key in fields or key not in {"LoadState", "ActiveState", "SubState"}:
+            return "unknown"
+        fields[key] = value
+    if fields.get("LoadState") != "loaded":
+        return "unknown"
+    if fields.get("ActiveState") == "active" and fields.get("SubState") in {"running", "exited"}:
+        return "active"
+    if fields.get("ActiveState") == "inactive" and fields.get("SubState") == "dead":
+        return "inactive"
+    return "unknown"
+
+
+def parse_inhibitors(text):
+    """Parse C-locale systemd table from the right; never return private columns."""
+    result = {"shutdown_block": False, "session_block": False, "shutdown_delay": False,
+              "unknown": False}
+    if text is None:
+        return {**result, "unknown": True}
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if lines == ["No inhibitors listed."]:
+        return result
+    if not lines or lines[0].split() != ["WHO", "UID", "USER", "PID", "COMM", "WHAT", "WHY", "MODE"]:
+        return {**result, "unknown": True}
+    import re
+    footer = re.fullmatch(r"(\d+) inhibitors? listed\.", lines[-1])
+    rows = lines[1:-1]
+    if not footer or int(footer[1]) != len(rows):
+        return {**result, "unknown": True}
+    for row in rows:
+        # UID/PID delimit the identity columns; WHAT has a fixed vocabulary.
+        match = re.fullmatch(r".+?\s+\d+\s+\S+\s+\d+\s+(\S+)\s+([a-z:-]+)\s+.+?\s+(block|delay)", row)
+        if not match:
+            result["unknown"] = True
+            continue
+        comm, what, mode = match.groups()
+        parts = what.split(":")
+        if any(p not in {"shutdown", "sleep", "idle", "handle-power-key", "handle-suspend-key",
+                         "handle-hibernate-key", "handle-lid-switch", "handle-reboot-key"} for p in parts):
+            result["unknown"] = True
+        if "shutdown" in parts:
+            result["shutdown_" + mode] = True
+            if mode == "block" and ("session" in comm or comm.startswith("gnome-")):
+                result["session_block"] = True
+    return result
+
+
+def collect_power_safety():
+    atlas = parse_atlas(read_command(ATLAS))
+    inhibitors = parse_inhibitors(read_command(INHIBITORS))
+    processes = read_command(PROCESSES)
+    categories = []
+    if processes is not None:
+        names = processes.lower().splitlines()
+        for category, tokens in {"Atlas": ("atlas",), "ns-3": ("ns3", "ns-3"),
+                                 "Codex": ("codex",), "CPUWM": ("cpuwm",)}.items():
+            if any(any(token in name for token in tokens) for name in names):
+                categories.append(category)
+    unknowns = ["CPUWM active-job state is not verified; the manager must not be bypassed.",
+                "Unsaved desktop work and other long-running jobs cannot be ruled out."]
+    reasons = []
+    warnings = ["Process categories are best-effort and cannot prove that work is idle."]
+    if atlas == "active":
+        reasons.append("Atlas service is active; protect running work.")
+    elif atlas == "unknown":
+        unknowns.append("Atlas service state is unknown.")
+    if inhibitors["unknown"]:
+        unknowns.append("Shutdown inhibitor data is missing or ambiguous.")
+    if inhibitors["shutdown_block"]:
+        reasons.append("A systemd shutdown/block inhibitor prevents power requests.")
+    if inhibitors["session_block"]:
+        reasons.append("The desktop session blocks shutdown; protect unsaved work.")
+    if inhibitors["shutdown_delay"]:
+        warnings.append("Shutdown delay inhibitors are present; applications or updates need time.")
+    if processes is None:
+        unknowns.append("Workload process categories are unavailable.")
+    if categories:
+        reasons.append("Known workload categories are present: " + ", ".join(categories) + ".")
+    return {"checked_at": datetime.now(timezone.utc).isoformat(), "safe_to_request": False,
+            "atlas_state": atlas, "inhibitors": inhibitors, "workload_categories": categories,
+            "unknowns": unknowns, "blocked_reasons": reasons + unknowns, "warnings": warnings}

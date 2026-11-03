@@ -92,3 +92,63 @@ it defeats deduplication. Acknowledgements are sent on the next report, so `--on
 may leave a completed execution pending until a later run.
 
 Offline tests mock HTTP and all command subprocesses. No test changes audio, applies a CPUWM profile, or alters system power. Deployment validation on 2026-11-03 confirmed the real Tailnet owner identity is recognized through private Tailscale Serve, while direct localhost requests are denied. The live API rejects unsupported shutdown, unconfirmed CPUWM, and invalid volume requests with HTTP 400. The actual CPUWM and audio setters remain unexercised until the user explicitly invokes them on the phone.
+
+
+## Read-only power safety and preview timer
+
+Real Ubuntu shutdown/restart is not implemented or enabled. The command queue and
+agent executor continue to reject power commands. No timer command is delivered
+to Ubuntu. The Control tab (not the Dashboard) offers **Simulation only — will
+NOT turn off or restart Ubuntu.**
+
+`GET /api/power/safety` requires the same verified Tailnet operator as command
+control. It reads only the latest signed Ubuntu safety field, never Pi hardware
+metrics. It returns `status: "absent"` when no safety report exists, `"stale"`
+when the agent is offline or the safety check is older than 35 seconds, and
+`"fresh"` for a recent check. Missing/invalid timestamps and future clock skew
+beyond five seconds fail closed. Stale data never becomes a safe assessment.
+
+The unprivileged agent uses fixed read-only `systemctl --user show` for the known
+Atlas service, `systemd-inhibit --list --no-pager`, and process command names only.
+Readers use `shell=False`, a three-second deadline and a 32 KiB output limit.
+Raw output, user identities, process IDs, argv and paths are not included in
+power safety telemetry. An active Atlas service always blocks, including startup.
+Shutdown/block inhibitors block, desktop-session blockers are called out, and
+shutdown/delay inhibitors produce warnings. Missing services, ambiguous inhibitor
+tables and unavailable readers are explicit unknowns. Process categories are
+best effort; they cannot establish that all long-running jobs are idle. CPUWM
+active-job state and unsaved desktop work remain unverified, so `safe_to_request`
+is conservatively false. These checks do not bypass CPUWM or release inhibitors.
+
+`GET /api/power/preview`, `POST /api/power/preview` and `POST /api/power/cancel`
+also require verified operator identity. POSTs additionally require the existing
+same-Origin, session cookie, CSRF and JSON checks. Create accepts exactly:
+
+```json
+{"action":"shutdown","delay_minutes":15}
+```
+
+`action` is `shutdown` or `restart`; delay is a strict integer 1–240, excluding
+booleans, floats and strings. Cancel accepts exactly `{}`. One `draft` may exist
+at a time; creating another returns 409 until cancellation or expiry. Canceled
+and elapsed previews do not count as active drafts. All successful preview
+responses include `preview_only: true`, `will_execute: false`, safety blockers,
+a simulation-only message, UTC epoch timestamps and server-calculated
+`remaining_seconds`. Drafts are allowed when safety is blocked or stale to test
+the UI, explicitly labeled **Blocked: no power action will be performed**.
+
+State is private SQLite storage at `data/power-preview.sqlite`, independent of
+the command queue. It is opened lazily on authorized requests; importing the
+preview module creates no files. Transactions serialize concurrent requests.
+Expiry is calculated lazily using UTC time, without threads or background jobs.
+A hub restart retains the draft, deadline or terminal state. At the deadline the
+only transition is `draft` to `elapsed`; elapsed previews never execute anything.
+Canceling changes a draft to `canceled` and reports zero remaining seconds. The
+PWA polls server state and labels remaining time as a server reading; it does not
+use a browser countdown as authority. If disconnected, readings are unavailable.
+
+Before a future real action can be implemented, obtain explicit future approval,
+add a second confirmation and recheck active work and inhibitors at the deadline.
+Verify CPUWM jobs through its supported interface without bypassing the manager.
+Unsaved desktop work must have explicit protection; never blindly force a remote
+shutdown. No automatic execution may be enabled by this preview iteration.

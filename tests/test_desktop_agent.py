@@ -53,7 +53,7 @@ class TelemetryParsingTests(unittest.TestCase):
 
 
     def test_runtime_schema(self):
-        with mock.patch.object(agent, "cpu_usage", return_value=17.5):
+        with mock.patch.object(agent, "collect_power_safety", return_value={}), mock.patch.object(agent, "cpu_usage", return_value=17.5):
             with mock.patch.object(agent, "cpu_temperature", return_value=None):
                 with mock.patch.object(agent, "gpu_status", return_value=[]):
                     with mock.patch.object(agent, "fan_speeds", return_value=[]):

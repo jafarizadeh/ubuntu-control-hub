@@ -2,6 +2,8 @@
 """Ubuntu Control Hub. Strictly localhost only; expose through private Tailscale Serve."""
 from __future__ import annotations
 
+from datetime import datetime
+
 import functools
 import hashlib
 import hmac
@@ -21,6 +23,7 @@ import time
 from urllib.parse import urlsplit
 
 from agent_broker import AgentBroker
+from power_preview import PreviewStore
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STATIC = ROOT / "web" / "static"
@@ -30,6 +33,7 @@ COMMAND = ROOT / ".venv" / "bin" / "bscpylgtvcommand"
 TV_DATABASE = CONFIG / ".aiopylgtv.sqlite"
 STATUS_COMMAND = ROOT / "bin" / "status.py"
 BROKER = AgentBroker(CONFIG / "desktop_agent.pub", state_file=ROOT / "data" / "command-state.sqlite")
+PREVIEWS = PreviewStore(ROOT / "data" / "power-preview.sqlite")
 OPERATOR = CONFIG / "operator.json"
 WOL_COMMAND = ROOT / "bin" / "wake.py"
 DEVICE_INFO = json.loads((CONFIG / "devices.json").read_text())
@@ -145,6 +149,49 @@ def can_control(headers):
         return False
 
 
+def power_safety():
+    """Use signed Ubuntu data only; never collect Pi hardware metrics here."""
+    state = BROKER.desktop_state()
+    safety = state.get("metrics", {}).get("power_safety")
+    availability = "absent"
+    if state.get("control_agent") != "online":
+        availability = "stale" if state.get("last_agent_report_unix") else "absent"
+    elif isinstance(safety, dict):
+        availability = "stale"
+        try:
+            stamp = datetime.fromisoformat(safety["checked_at"])
+            age = time.time() - stamp.timestamp()
+            required = {"checked_at", "safe_to_request", "atlas_state", "inhibitors",
+                        "workload_categories", "unknowns", "blocked_reasons", "warnings"}
+            complete = (required <= safety.keys()
+                        and type(safety.get("safe_to_request")) is bool
+                        and safety.get("atlas_state") in ("active", "inactive", "unknown")
+                        and isinstance(safety.get("inhibitors"), dict)
+                        and all(type(safety["inhibitors"].get(key)) is bool for key in
+                                ("shutdown_block", "session_block", "shutdown_delay", "unknown"))
+                        and all(isinstance(safety.get(key), list)
+                                and len(safety[key]) <= 32
+                                and all(isinstance(item, str) and len(item) <= 300 for item in safety[key])
+                                for key in ("unknowns", "blocked_reasons", "warnings", "workload_categories")))
+            if complete and stamp.tzinfo is not None and -5 <= age <= 35:
+                availability = "fresh"
+        except (ValueError, TypeError, KeyError, OverflowError):
+            pass
+    if availability != "fresh":
+        return {"status": availability, "safe_to_request": False, "checked_at": None,
+                "blocked_reasons": ["Fresh signed Ubuntu power safety data is unavailable."],
+                "unknowns": ["Ubuntu power safety is unknown."], "warnings": []}
+    # Execution remains disabled even if a future agent reports a clear preflight.
+    return {**{key: safety[key] for key in required},
+            "status": "fresh", "safe_to_request": False}
+
+
+def preview_response(result):
+    safety = power_safety()
+    return {**result, "safety": safety,
+            "message": "Blocked: no power action will be performed. Simulation only."}
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "UbuntuControl/0.3"
 
@@ -201,6 +248,13 @@ class Handler(BaseHTTPRequestHandler):
         if not self._host_ok():
             return self._json({"error": "Host not allowed"}, 403)
         path = urlsplit(self.path).path
+        if path in {"/api/power/safety", "/api/power/preview"}:
+            if not can_control(self.headers):
+                return self._json({"error": "Control denied"}, 403)
+            try:
+                return self._json(power_safety() if path.endswith("/safety") else preview_response(PREVIEWS.get()))
+            except (OSError, sqlite3.Error):
+                return self._json({"error": "Power preview unavailable"}, 503)
         if path == "/api/control/capabilities":
             return self._json({"can_control": can_control(self.headers)})
         if path.startswith("/api/commands/"):
@@ -261,7 +315,7 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, OSError, sqlite3.Error):
                 return self._json({"error": "Agent report unavailable"}, 503)
             return self._json(result)
-        if path == "/api/commands" and not can_control(self.headers):
+        if path in {"/api/commands", "/api/power/preview", "/api/power/cancel"} and not can_control(self.headers):
             return self._json({"error": "Control denied"}, 403)
         origin = self.headers.get("Origin", "")
         if not check_origin(self.headers.get("Host", ""), origin):
@@ -282,6 +336,16 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             return self._json({"error": "Invalid JSON"}, 400)
         path = urlsplit(self.path).path
+        if path in {"/api/power/preview", "/api/power/cancel"}:
+            try:
+                result = PREVIEWS.create(request) if path.endswith("/preview") else PREVIEWS.cancel(request)
+                return self._json(preview_response(result))
+            except ValueError as error:
+                return self._json({"error": str(error)}, 400)
+            except FileExistsError:
+                return self._json({"error": "Cancel the existing preview first"}, 409)
+            except (OSError, sqlite3.Error):
+                return self._json({"error": "Power preview unavailable"}, 503)
         if path == "/api/commands":
             try:
                 return self._json(BROKER.commands.enqueue(request), 202)

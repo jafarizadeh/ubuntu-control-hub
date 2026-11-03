@@ -13,6 +13,8 @@ import subprocess
 import sys
 import time
 
+from power_safety import collect_power_safety
+
 SCHEMA_VERSION = 1
 
 
@@ -271,6 +273,7 @@ def collect_status() -> dict:
         "audio": audio_status(),
         "network": network_status(),
         "workload_manager": workload_manager_status(),
+        "power_safety": collect_power_safety(),
     }
 
 
