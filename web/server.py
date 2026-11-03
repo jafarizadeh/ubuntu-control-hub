@@ -54,11 +54,11 @@ def status():
             return _last_report[1]
         r = subprocess.run(
             [sys.executable, str(STATUS_COMMAND)],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=12, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=18, check=True,
         )
         report = json.loads(r.stdout)
         report["tv"]["paired"] = paired()
-        report["desktop"]["control_agent"] = "not_configured"
+        report["desktop"].setdefault("control_agent", "not_configured")
         report["hub"] = {"version": "0.1.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report

@@ -16,7 +16,9 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] LAN availability monitoring.
 - [x] Send Wake-on-LAN packet.
 - [ ] Confirm physical wake from powered-off state.
-- [ ] Authenticated, least-privilege, allowlisted desktop agent.
+- [x] Read-only desktop telemetry CLI built and tested locally (not deployed).
+- [ ] Configure and verify restricted SSH channel from Raspberry Pi (not yet deployed).
+- [ ] Authenticated, least-privilege, allowlisted command agent.
 - [ ] Live CPU, GPU, RAM, disk, temperature, fans, uptime, network.
 - [ ] Protected shutdown and restart with explicit confirmation.
 - [ ] Shutdown timer, remaining time display, cancellation.

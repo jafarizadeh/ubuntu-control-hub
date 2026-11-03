@@ -41,6 +41,7 @@ class RepositorySmokeTests(unittest.TestCase):
         for key in ("desktop", "tv"):
             self.assertTrue(example[key]["ip"].startswith("192.0.2."))
             self.assertIn("mac", example[key])
+        self.assertFalse(example["desktop"]["agent_ssh"]["enabled"])
 
     def test_backend_localhost_and_csrf(self):
         src = (ROOT / "web/server.py").read_text()

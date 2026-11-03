@@ -80,6 +80,17 @@ async function refreshStatus(manual = false) {
     const ts = String(controller.tailscale_state || "Unknown");
     text("ts-state", ts === "Running" ? "Connected" : ts === "NeedsLogin" ? "Sign-in required" : ts);
     setDeviceStatus("desktop-state", desktop.ping_reachable);
+    const agentReady = desktop.control_agent === "online" && desktop.metrics;
+    const report = agentReady ? desktop.metrics : {};
+    text("desktop-agent-state", agentReady ? "Read-only agent connected"
+      : desktop.control_agent === "unavailable" ? "Desktop agent unavailable" : "Desktop agent not configured");
+    el("desktop-telemetry").hidden = !agentReady;
+    if (agentReady) {
+      text("desktop-cpu", report.cpu?.usage_percent == null ? "—" : fmt(report.cpu.usage_percent) + "%");
+      text("desktop-temperature", report.cpu?.temperature_c == null ? "—" : fmt(report.cpu.temperature_c) + "°C");
+      text("desktop-memory", report.memory?.available_mib == null ? "—" : fmt(report.memory.available_mib) + " MiB");
+      text("desktop-disk", report.storage?.free_gib == null ? "—" : fmt(report.storage.free_gib) + " GiB");
+    }
     setDeviceStatus("tv-state", tv.ping_reachable && tv.webos_api_reachable);
     text("tv-pairing", tv.paired ? "webOS paired" : "Pairing required");
     text("tv-controls-message", tv.paired

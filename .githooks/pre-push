@@ -1,0 +1,12 @@
+#!/bin/sh
+# Local safety net only. Set up GitHub branch rules as well.
+while read -r local_ref local_sha remote_ref remote_sha
+do
+  case "$remote_ref" in
+    refs/heads/main)
+      echo "Direct pushes to main blocked locally. Create a pull request." >&2
+      exit 1
+      ;;
+  esac
+done
+exit 0

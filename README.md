@@ -18,11 +18,12 @@ The backend is Python, and the frontend is static HTML/CSS/JavaScript with no bu
 
 - web/server.py: private API, allowlisted command handlers and static file server.
 - web/static/: English LTR/light PWA, assets and service worker.
-- bin/: read-only status, Wake-on-LAN, LG pairing and Tailnet publication.
+- bin/: Raspberry Pi status, restricted SSH desktop client, Wake-on-LAN, LG pairing and Tailnet publication.
+- agent/desktop_status.py: read-only Ubuntu telemetry (no root, no daemon).
 - config/devices.example.json: fictional sample addresses only.
 - deploy/: sample systemd unit.
 - docs/: roadmap, operations, security and development workflow.
-- tests/: safe, non-destructive repository smoke tests.
+- tests/: safe, non-destructive repository and desktop-agent tests.
 
 ## Local setup (Raspberry Pi OS)
 
@@ -59,7 +60,7 @@ These checks do not send power or TV commands.
 
 ## Project policy
 
-Use feature/fix branches and pull requests. Keep user-visible UI and docs in English. Protect the Raspberry Pi service and data when deploying. The existing live installation is not yet connected to GitHub releases; see docs/OPERATIONS.md and docs/ROADMAP.md.
+Use feature/fix branches and pull requests. Keep user-visible UI and docs in English. Protect the Raspberry Pi service and data when deploying. The existing live installation is not yet connected to GitHub releases; see docs/OPERATIONS.md and docs/ROADMAP.md. The desktop status agent is a separate, opt-in feature; see docs/DESKTOP_AGENT.md.
 
 ## Confidentiality
 

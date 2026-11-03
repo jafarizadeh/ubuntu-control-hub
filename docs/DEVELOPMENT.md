@@ -2,6 +2,7 @@
 
 - main contains reviewed stable source, not an automatically deployed production release.
 - Use feature/topic or fix/topic branches; open pull requests to main.
+- Local .githooks/pre-push prevents direct main pushes on configured clones; it is NOT GitHub server-side branch protection. Configure GitHub branch rules separately.
 - Include scope, tests, security assessment and rollback in each pull request.
 - Keep English UI labels, light theme and LTR layout unless requirements change.
 - Run CI static checks; do not invoke live power/TV commands in CI.

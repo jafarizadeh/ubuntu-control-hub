@@ -8,6 +8,8 @@ import subprocess
 import sys
 import time
 
+from desktop_agent_client import fetch_status
+
 BASE = pathlib.Path(__file__).resolve().parent.parent
 DEVICES = json.loads((BASE / "config/devices.json").read_text())
 
@@ -70,7 +72,8 @@ report = {
     "desktop": {
         "ip": DEVICES["desktop"]["ip"],
         "ping_reachable": ping(DEVICES["desktop"]["ip"]),
-        "mac_configured": bool(DEVICES["desktop"].get("mac"))
+        "mac_configured": bool(DEVICES["desktop"].get("mac")),
+        **fetch_status(DEVICES["desktop"])
     },
     "tv": {
         "ip": DEVICES["tv"]["ip"],

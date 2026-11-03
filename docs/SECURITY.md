@@ -17,7 +17,8 @@ The provided config/devices.example.json contains non-routable documentation add
 
 ## Commands and operations
 - Implement only explicitly allowlisted commands and parameters.
-- Use a minimal dedicated agent privilege set for Ubuntu; never execute arbitrary submitted shell strings.
+- Start with a dedicated SSH key restricted to the read-only status command; see docs/DESKTOP_AGENT.md.
+- Use a minimal dedicated agent privilege set for future Ubuntu control operations; never execute arbitrary submitted shell strings.
 - Distinguish Wake-on-LAN packet transmission from verified power-on.
 - Require confirmation for shutdown, restart, updates and other disruptions.
 - Check for active jobs before shutdown and allow cancellation of scheduled actions.

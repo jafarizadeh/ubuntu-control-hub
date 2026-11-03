@@ -71,6 +71,13 @@
             <article class="device-card panel">
               <div class="device-head"><div class="device-symbol desktop-symbol"><svg width="27" height="27" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg></div><span class="state-tag" id="desktop-state">Checking…</span></div>
               <h3>Ubuntu Desktop</h3><p>Workstation · Ethernet</p><div class="meta-line"><span>IP</span><strong dir="ltr" id="desktop-ip">—</strong></div>
+              <div class="agent-state" id="desktop-agent-state">Desktop agent not configured</div>
+              <div class="desktop-telemetry" id="desktop-telemetry" hidden>
+                <div><span>CPU</span><strong id="desktop-cpu">—</strong></div>
+                <div><span>Temperature</span><strong id="desktop-temperature">—</strong></div>
+                <div><span>Available RAM</span><strong id="desktop-memory">—</strong></div>
+                <div><span>Free disk</span><strong id="desktop-disk">—</strong></div>
+              </div>
               <div class="device-footer"><button type="button" class="btn btn-primary" data-action="wake-desktop">⏻ <span>Wake</span></button><span class="hint">Wake-on-LAN</span></div>
             </article>
             <article class="device-card panel">
