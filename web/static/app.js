@@ -136,6 +136,7 @@ function paintWithoutUbuntu() {
     "metric-memory", "metric-disk", "metric-fans", "metric-uptime", "metric-gpu-memory",
     "metric-network", "metric-audio", "metric-performance", "control-volume", "control-profile"];
   empty.forEach((id) => put(id, "—"));
+  window.UbuntuCPU.stale();
   put("hero-cpu-model", "No fresh Ubuntu readings");
   put("hero-memory-detail", "—");
   put("hero-gpu-detail", "—");
@@ -167,6 +168,7 @@ function paintWithoutUbuntu() {
 
 function paintUbuntu(report) {
   const cpu = report.cpu || {};
+  window.UbuntuCPU.update(report);
   const mem = report.memory || {};
   const disk = report.storage || {};
   const gpus = Array.isArray(report.gpus) ? report.gpus : [];
@@ -427,17 +429,22 @@ async function refreshStatus(manual = false) {
 }
 
 function switchTab(tab) {
-  if (!["dashboard", "control", "history"].includes(tab)) return;
+  if (!["dashboard", "control", "history", "cpu"].includes(tab)) return;
   app.tab = tab;
-  for (const key of ["dashboard", "control", "history"]) el("view-" + key).hidden = key !== tab;
+  for (const key of ["dashboard", "control", "history", "cpu"]) el("view-" + key).hidden = key !== tab;
+  document.body.classList.toggle("cpu-details-open", tab === "cpu");
   document.querySelectorAll("[data-tab]").forEach((button) => {
-    const selected = button.dataset.tab === tab;
+    const selected = button.dataset.tab === (tab === "cpu" ? "dashboard" : tab);
     button.classList.toggle("selected", selected);
     button.setAttribute("aria-current", selected ? "page" : "false");
   });
   window.scrollTo({top: 0, behavior: "instant"});
   if (tab === "history") loadHistory();
   if (tab === "control") void refreshControlAccess();
+  if (tab === "cpu") {
+    window.UbuntuCPU.onOpen();
+    void refreshStatus();
+  }
 }
 
 async function executeAction(name, button) {
@@ -551,6 +558,9 @@ async function loadHistory() {
 
 async function init() {
   window.UbuntuIOS.init();
+  window.UbuntuCPU.init();
+  el("open-cpu-details").addEventListener("click", () => switchTab("cpu"));
+  el("cpu-back-button").addEventListener("click", () => switchTab("dashboard"));
   initCustomization();
   initCommandControls();
   initPowerPreview();

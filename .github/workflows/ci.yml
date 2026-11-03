@@ -28,6 +28,7 @@ jobs:
         run: |
           node --check web/static/app.js
           node --check web/static/ios-ui.js
+          node --check web/static/cpu-details.js
           node --check web/static/sw.js
       - name: Device config template
         run: python -m json.tool config/devices.example.json > /dev/null

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import shutil
@@ -14,6 +15,7 @@ import sys
 import time
 
 from power_safety import collect_power_safety
+from cpu_monitor import CPUActivitySampler, sample_once
 
 SCHEMA_VERSION = 1
 
@@ -244,8 +246,63 @@ def cpu_model() -> str | None:
     return None
 
 
-def collect_status() -> dict:
+def physical_core_count() -> int | None:
+    """Physical cores count only when /proc/cpuinfo exposes trustworthy pairs."""
+    raw = read_text(Path("/proc/cpuinfo")) or ""
+    physical = set()
+    for block in raw.split("\n\n"):
+        fields = {}
+        for line in block.splitlines():
+            if ":" in line:
+                key, value = line.split(":", 1)
+                fields[key.strip()] = value.strip()
+        if fields.get("physical id", "").isdigit() and fields.get("core id", "").isdigit():
+            physical.add((int(fields["physical id"]), int(fields["core id"])))
+    return len(physical) if physical else None
+
+
+def clock_information() -> dict:
+    """Read CPU clock and governor from sysfs (best effort, no privileged calls)."""
+    base = Path("/sys/devices/system/cpu")
+    current = []
+    for file in sorted(base.glob("cpu[0-9]*/cpufreq/scaling_cur_freq"))[:256]:
+        raw = read_text(file)
+        try:
+            khz = int((raw or "").strip())
+            if 0 < khz < 15000000:
+                current.append(khz)
+        except ValueError:
+            continue
+    max_raw = read_text(base / "cpu0/cpufreq/cpuinfo_max_freq")
+    governor = (read_text(base / "cpu0/cpufreq/scaling_governor") or "").strip()
+    try:
+        max_ghz = round(int((max_raw or "").strip()) / 1e6, 2)
+        if not 0 < max_ghz <= 15:
+            max_ghz = None
+    except ValueError:
+        max_ghz = None
+    return {
+        "current_ghz": round(sum(current) / len(current) / 1e6, 2) if current else None,
+        "maximum_ghz": max_ghz,
+        "governor": governor[:50] if governor else None,
+    }
+
+
+def load_averages() -> dict | None:
+    try:
+        one, five, fifteen = os.getloadavg()
+        return {"1m": round(one, 2), "5m": round(five, 2), "15m": round(fifteen, 2)}
+    except (OSError, ValueError):
+        return None
+
+
+def collect_status(cpu_sampler: CPUActivitySampler | None = None) -> dict:
     disk = shutil.disk_usage("/")
+    cpu_snapshot = cpu_sampler.snapshot() if cpu_sampler is not None else sample_once()
+    if cpu_snapshot.get("usage_percent") is None:
+        # Start-up fallback: obtain a real short /proc/stat window.
+        cpu_snapshot = sample_once()
+    cpu_clocks = clock_information()
     try:
         uptime = int(float((read_text(Path("/proc/uptime")) or "0").split()[0]))
     except (ValueError, IndexError):
@@ -258,9 +315,17 @@ def collect_status() -> dict:
         "uptime_s": uptime,
         "cpu": {
             "logical_cores": os.cpu_count(),
+            "physical_cores": physical_core_count(),
             "model": cpu_model(),
-            "usage_percent": cpu_usage(),
+            "architecture": platform.machine()[:30],
+            "usage_percent": cpu_snapshot.get("usage_percent"),
             "temperature_c": cpu_temperature(),
+            "per_core": cpu_snapshot.get("per_core", []),
+            "history": cpu_snapshot.get("history", []),
+            "sampled_at_unix": cpu_snapshot.get("sampled_at_unix"),
+            "sample_interval_seconds": cpu_snapshot.get("interval_seconds", 1),
+            "clock": cpu_clocks,
+            "load_average": load_averages(),
         },
         "memory": memory(),
         "storage": {

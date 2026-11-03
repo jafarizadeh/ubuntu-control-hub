@@ -13,7 +13,9 @@
   <link rel="apple-touch-icon" href="/icon-180.png">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/ios-controls.css">
+  <link rel="stylesheet" href="/cpu-details.css">
   <script src="/ios-ui.js" defer></script>
+  <script src="/cpu-details.js" defer></script>
   <script src="/app.js" defer></script>
   <title>Ubuntu Control</title>
 </head>
@@ -45,7 +47,7 @@
       <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
       <div class="sidebar-bottom">
         <span class="privacy-dot"></span> Private via Tailscale
-        <div class="side-version">Ubuntu Control v0.5</div>
+        <div class="side-version">Ubuntu Control v0.6</div>
       </div>
     </nav>
     <main id="main">
@@ -69,7 +71,14 @@
             <span class="live-chip" id="data-freshness">No live data</span>
           </div>
           <div class="overview-stats" aria-label="Primary Ubuntu metrics">
-            <div class="overview-stat"><span>CPU load</span><strong id="hero-cpu">—</strong><small id="hero-cpu-model">Live CPU utilization</small></div>
+            <div class="overview-stat overview-stat-cpu">
+              <button class="cpu-overview-link" id="open-cpu-details" type="button"
+                aria-label="Open live CPU core usage, temperature and history">
+                <span class="cpu-overview-title">CPU load <span class="cpu-overview-arrow" aria-hidden="true">↗</span></span>
+                <strong id="hero-cpu">—</strong>
+                <small id="hero-cpu-model">Live CPU utilization</small>
+              </button>
+            </div>
             <div class="overview-stat"><span>Memory used</span><strong id="hero-memory">—</strong><small id="hero-memory-detail">Live RAM usage</small></div>
             <div class="overview-stat"><span>GPU load</span><strong id="hero-gpu">—</strong><small id="hero-gpu-detail">Graphics processor</small></div>
           </div>
@@ -140,6 +149,56 @@
           <article class="metric-card panel" data-metric="performance"><span>CPUWM profile</span><strong id="metric-performance">—</strong><small>CPU & GPU Workload Manager</small></article>
         </div>
 
+      </section>
+
+      <section class="view cpu-details-view" id="view-cpu" hidden aria-label="Ubuntu CPU details">
+        <div class="cpu-details-toolbar">
+          <button class="cpu-back-button" id="cpu-back-button" type="button" aria-label="Back to Dashboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Dashboard
+          </button>
+          <span class="cpu-details-source" id="cpu-details-source">Ubuntu CPU telemetry</span>
+        </div>
+        <div class="cpu-page-heading">
+          <div>
+            <div class="eyebrow">LIVE WORKSTATION METRICS</div>
+            <h1>CPU Details</h1>
+            <p>Per-core usage and activity history, sampled on Ubuntu</p>
+          </div>
+          <span class="cpu-freshness" id="cpu-freshness">Waiting for data</span>
+        </div>
+
+        <section class="cpu-widget" aria-label="CPU per-core monitoring widget">
+          <div class="cpu-widget-head">
+            <span>CPU (<span id="cpu-detail-temp">—</span>) : <strong id="cpu-detail-usage">—</strong></span>
+            <span class="cpu-widget-live" id="cpu-detail-time">—</span>
+          </div>
+          <div id="cpu-core-grid" class="cpu-core-grid" role="group" aria-label="Usage of individual logical CPU cores">
+            <div class="cpu-core-empty">Waiting for per-core readings from Ubuntu…</div>
+          </div>
+          <div class="cpu-history-panel">
+            <canvas id="cpu-history-canvas" class="cpu-history-canvas" role="img"
+              aria-label="Red line chart of actual CPU utilization over the last 90 seconds"></canvas>
+            <div class="cpu-history-legend"><span>90-SECOND CPU HISTORY</span><span id="cpu-history-count">Collecting samples…</span></div>
+          </div>
+          <div class="cpu-widget-gpu">GPU (<span id="cpu-detail-gpu-temp">—</span>) : <strong id="cpu-detail-gpu-load">—</strong></div>
+        </section>
+
+        <div class="cpu-detail-section-heading"><h2>Processor information</h2><p>Hardware and operating system readings</p></div>
+        <div class="cpu-info-grid">
+          <article class="cpu-info-card panel cpu-info-wide"><span>Processor model</span><strong id="cpu-info-model">—</strong></article>
+          <article class="cpu-info-card panel"><span>Logical CPUs</span><strong id="cpu-info-logical">—</strong></article>
+          <article class="cpu-info-card panel"><span>Physical cores</span><strong id="cpu-info-physical">—</strong></article>
+          <article class="cpu-info-card panel"><span>Current CPU clock</span><strong id="cpu-info-clock">—</strong></article>
+          <article class="cpu-info-card panel"><span>Maximum frequency</span><strong id="cpu-info-max-clock">—</strong></article>
+          <article class="cpu-info-card panel"><span>Frequency governor</span><strong id="cpu-info-governor">—</strong></article>
+          <article class="cpu-info-card panel"><span>Architecture</span><strong id="cpu-info-arch">—</strong></article>
+          <article class="cpu-info-card panel"><span>1-minute load average</span><strong id="cpu-info-load1">—</strong></article>
+          <article class="cpu-info-card panel"><span>5-minute load average</span><strong id="cpu-info-load5">—</strong></article>
+          <article class="cpu-info-card panel"><span>15-minute load average</span><strong id="cpu-info-load15">—</strong></article>
+          <article class="cpu-info-card panel"><span>Highest core usage</span><strong id="cpu-info-peak">—</strong></article>
+        </div>
+        <p class="cpu-data-note">Core statistics are measured from Ubuntu's /proc/stat. The Agent samples approximately every second and sends signed reports through the private Raspberry Pi Hub. Values and the chart stop updating when the Agent is unavailable.</p>
       </section>
 
       <section class="view" id="view-control" hidden aria-label="Ubuntu control panel">

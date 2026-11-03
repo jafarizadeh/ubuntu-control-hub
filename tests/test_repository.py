@@ -49,6 +49,33 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn("X-UC-CSRF", src)
         self.assertIn("check_origin(", src)
 
+    def test_cpu_details_from_signed_ubuntu_telemetry(self):
+        html = (ROOT / "web/static/index.html").read_text()
+        js = (ROOT / "web/static/app.js").read_text()
+        cpu_js = (ROOT / "web/static/cpu-details.js").read_text()
+        css = (ROOT / "web/static/cpu-details.css").read_text()
+        worker = (ROOT / "web/static/sw.js").read_text()
+        self.assertIn('id="open-cpu-details"',html)
+        self.assertIn('id="view-cpu" hidden',html)
+        self.assertIn('id="cpu-back-button"',html)
+        self.assertIn('id="cpu-core-grid"',html)
+        self.assertIn('id="cpu-history-canvas"',html)
+        self.assertIn('id="cpu-detail-gpu-temp"',html)
+        self.assertIn('id="cpu-info-physical"',html)
+        self.assertIn('id="cpu-info-clock"',html)
+        self.assertIn('window.UbuntuCPU.update(report)',js)
+        self.assertIn('window.UbuntuCPU.stale()',js)
+        self.assertIn('switchTab("cpu")',js)
+        self.assertIn('HISTORY_LIMIT = 90',cpu_js)
+        self.assertIn('HOT_THRESHOLD = 90',cpu_js)
+        self.assertIn('validCoreList(cpu.per_core)',cpu_js)
+        self.assertIn('ctx.strokeStyle="#ff4960"',cpu_js)
+        self.assertIn('4,minmax(0,1fr)',css)
+        self.assertIn('/cpu-details.js',worker)
+        self.assertIn('/cpu-details.css',worker)
+        self.assertNotIn("setInterval(() => Math.random()",cpu_js)
+        self.assertNotIn("/api/pi/",cpu_js)
+
     def test_ubuntu_only_dashboard_and_power_controls(self):
         html = (ROOT / "web/static/index.html").read_text()
         dashboard = html.split('id="view-dashboard"', 1)[1].split('id="view-control"', 1)[0]

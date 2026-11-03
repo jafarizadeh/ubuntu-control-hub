@@ -56,3 +56,26 @@ is styled as a dismissible in-app notification.
 
 These are presentation and interaction changes only. No new privileged API
 capability, arbitrary shell, or real shutdown/restart has been enabled.
+
+
+## CPU Details (v0.6)
+
+The CPU load tile on the Ubuntu Dashboard is a button that opens a dedicated
+CPU Details page. Its primary dark telemetry panel deliberately matches the
+owner's Ubuntu CPU widget: CPU temperature and overall percentage, four columns
+of logical core utilization, a small red CPU activity timeline, and GPU
+temperature/usage underneath. Cores at 90% or higher are emphasized in red.
+
+The background Ubuntu Agent reads /proc/stat once per second with no
+privileges and retains a bounded 90-second ring buffer. Signed reports transport
+the per-core snapshot and history through the existing private Raspberry Pi
+Hub roughly every 10 seconds. The iPhone dashboard refreshes on its normal
+cadence and does not invent intermediate readings or request a new network port.
+No CPU or GPU management commands are introduced.
+
+Below the widget, the page shows CPU model, logical and physical cores when
+identifiable, average current CPU clock, maximum frequency, current frequency
+governor, architecture, and 1/5/15-minute load averages. Unavailable readings
+display a dash. If signed CPU telemetry goes stale, core values and history
+are cleared instead of showing old data as live. The red line always uses real
+sample percentages; it is not a mock graph.

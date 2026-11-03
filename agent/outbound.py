@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from desktop_status import collect_status
+from cpu_monitor import CPUActivitySampler
 from command_executor import CommandExecutor
 
 DEFAULT_CONFIG = Path.home() / ".config" / "ubuntu-control-agent" / "client.json"
@@ -83,8 +84,9 @@ def make_request(base: str, identity: Ed25519PrivateKey, status: dict, ack=None)
     )
 
 
-def report_once(base: str, identity: Ed25519PrivateKey, *, payload: dict | None = None, executor=None) -> dict:
-    status = payload if payload is not None else collect_status()
+def report_once(base: str, identity: Ed25519PrivateKey, *, payload: dict | None = None,
+                executor=None, cpu_sampler=None) -> dict:
+    status = payload if payload is not None else collect_status(cpu_sampler=cpu_sampler)
     req = make_request(base, identity, status, executor.ack if executor else None)
     with request.urlopen(req, timeout=8, context=ssl.create_default_context()) as response:
         if response.status != 200:
@@ -121,18 +123,23 @@ def main() -> int:
             print("Unable to report status: " + type(exc).__name__, file=sys.stderr)
             return 1
 
-    print("Ubuntu Control outbound signed telemetry started", flush=True)
+    sampler = CPUActivitySampler(interval=1.0, history_size=90)
+    sampler.start()
+    print("Ubuntu Control outbound signed telemetry started (1-second CPU samples)", flush=True)
     failures = 0
-    while True:
-        try:
-            report_once(base, identity, executor=executor)
-            failures = 0
-        except (OSError, ValueError, RuntimeError, error.URLError,
-                json.JSONDecodeError) as exc:
-            failures += 1
-            if failures in (1, 5, 20):
-                print("Report failure: " + type(exc).__name__, file=sys.stderr, flush=True)
-        time.sleep(interval if failures == 0 else min(max(interval, 5) * 2, 60))
+    try:
+        while True:
+            try:
+                report_once(base, identity, executor=executor, cpu_sampler=sampler)
+                failures = 0
+            except (OSError, ValueError, RuntimeError, error.URLError,
+                    json.JSONDecodeError) as exc:
+                failures += 1
+                if failures in (1, 5, 20):
+                    print("Report failure: " + type(exc).__name__, file=sys.stderr, flush=True)
+            time.sleep(interval if failures == 0 else min(max(interval, 5) * 2, 60))
+    finally:
+        sampler.stop()
 
 
 if __name__ == "__main__":

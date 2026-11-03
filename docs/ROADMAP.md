@@ -27,6 +27,11 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] Authenticated, allowlisted outbound command channel for Ubuntu Volume/Mute and CPUWM profile.
 - [ ] Verify command authorization and actions on real iPhone Safari end-to-end.
 - [x] Live CPU, GPU, RAM, disk, temperature, fans and uptime telemetry.
+- [x] Dedicated CPU Details view: clickable Dashboard CPU tile, per-logical-core grid and red history graph.
+- [x] Unprivileged 1-second /proc/stat sampler; 90-second bounded rolling buffer and signed delivery.
+- [x] CPU model, clock speed, physical/logical core count, governor and load averages with no privileged commands.
+- [ ] Verify CPU Details in Safari on an actual iPhone (mobile Chromium and responsive checks available).
+
 - [ ] Advanced per-interface network telemetry.
 - [ ] Protected shutdown and restart with explicit confirmation.
 - [x] Preview-only timer, server remaining-time display, persistence and cancellation (no execution).
