@@ -34,15 +34,15 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [ ] Verify CPU Details in Safari on an actual iPhone (mobile Chromium and responsive checks available).
 
 - [ ] Advanced per-interface network telemetry.
-- [ ] Protected shutdown and restart with explicit confirmation.
+- [x] Real shutdown/restart route with two owner confirmations, root safety recheck and 30-second cancellation grace (code and mock testing).
 - [x] Preview-only timer, server remaining-time display, persistence and cancellation (no execution).
 - [x] Read-only power safety: Atlas, shutdown inhibitors and best-effort workload categories; unknown data blocks.
 - [x] Atlas dispatcher-mode guard: distinguishes RUN/idle, owner STOP, owner STOP draining, and unknown STOP; no false shutdown clearance.
 - [x] Implement read-only verification of the future three-worker Codex stop receipt, roster, barrier and expiry; signed Hub projection and mobile UI are integrated.
 - [ ] Implement the actual authenticated Codex Stop All producer and barrier inside Atlas and obtain independent acknowledgements from every physical worker and dispatch lane. Current Atlas has no producer yet; do not equate idle or quota-limited agents with owner STOP.
 - [x] Bounded read-only CPUWM status with monitor freshness and sanitized counts/enforcement indicators; zero extra scopes never implies idle. Desktop save state remains unverifiable and session blockers are protected.
-- [ ] External session/save acknowledgements and supported CPUWM/Atlas job drain confirmation before any future safe shutdown workflow.
-- [ ] Real timer execution after explicit future approval and activation gates.
+- [ ] Strengthen independent Atlas and CPUWM job-drain evidence. Unsaved-file acknowledgement is a warning/consent, not a hard stop; file management stays separate.
+- [x] Real Pi-side persistent timer with cancellation, stale deadline rejection and at-most-once signed dispatch (code and mock tests).
 - [ ] Service controls: allowlisted systemd start/stop/restart.
 - [ ] Read-only processes, long-running jobs, logs and errors.
 - [ ] Approved updates, backups, file transfer and limited energy controls.
@@ -75,3 +75,11 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 No real system shutdown, restart, package update, fan override or disruptive job action without explicit approval, preflight checks and a rollback plan. Test dry-runs before enabling new controls.
 
 The read-only power safety and cancelable timer preview are deployed to the private Hub, but no power execution has been enabled. Next activation gates: explicit future approval for real actions, a second confirmation, a fresh safety check at the deadline, verified CPUWM active-job checks without bypassing the manager, and protection for unsaved desktop work. Never perform a blind shutdown of unsaved work. Cancellation and failure behavior must be verified before any real power execution is enabled. Continue iPhone verification of sound/CPUWM receipts, LG pairing and other remote operations separately.
+
+## Power operations (v1.0 policy)
+
+- [x] Separate explicit acceptance of unsaved-data loss from actually saving documents; warn twice and use a cancellable timer.
+- [x] Implement at-most-once dispatch and fail-closed signed read-only safety gates in source.
+- [ ] Finish controlled live deployment of the privileged helper and real-power API, without power-cycling Ubuntu during deployment.
+- [ ] Prove Wake-on-LAN with an intentional physical power-cycle; packet support alone does not establish firmware wake from S5.
+- [ ] Implement a separate Applications, Files and Terminals area for optional saves and graceful closing.

@@ -10,6 +10,7 @@ import subprocess
 import time
 
 from atlas_guard import read_atlas_dispatch_state
+from power_gate import inspect_power
 
 ATLAS = ["/usr/bin/systemctl", "--user", "show", "twt-roadmap-atlas.service",
          "--property=LoadState,ActiveState,SubState", "--no-pager"]
@@ -242,8 +243,10 @@ def collect_power_safety():
         unknowns.append("Workload process categories are unavailable.")
     if categories:
         reasons.append("Known workload categories are present: " + ", ".join(categories) + ".")
+    real_power = inspect_power()
     return {"checked_at": datetime.now(timezone.utc).isoformat(), "safe_to_request": False,
             "atlas_state": atlas, "atlas_control": atlas_control,
             "inhibitors": inhibitors, "workload_categories": categories,
             "cpuwm": cpuwm, "desktop_work": desktop_work,
+            "real_power": real_power,
             "unknowns": unknowns, "blocked_reasons": reasons + unknowns, "warnings": warnings}

@@ -11,6 +11,8 @@
   let hour = 0;
   let minute = 15;
   let selectedProfile = "balanced";
+  let liveDurationSetter = null;
+  let liveDurationInitial = null;
   let profileDirty = false;
   let snapshot = null;
   let scrollFrames = {hours: null, minutes: null};
@@ -132,7 +134,8 @@
     $("ios-picker-title").textContent = type === "duration" ? "Set duration" : "Workload profile";
     $("ios-sheet-done").disabled = false;
     if (type === "duration") {
-      const selected = Number($("power-preview-delay").value);
+      const selected = liveDurationInitial===null
+        ? Number($("power-preview-delay").value) : liveDurationInitial;
       hour = Math.floor(selected / 60);
       minute = selected % 60;
     } else {
@@ -154,10 +157,18 @@
     const sheet = $("ios-picker-sheet");
     if (!sheet.open) return;
     if (apply) {
-      if (activeSheet === "duration" && !duration(hour * 60 + minute)) return;
+      if (activeSheet === "duration") {
+        const total = hour * 60 + minute;
+        if (liveDurationSetter) {
+          if (!Number.isInteger(total) || total < 1 || total > 240) return;
+          liveDurationSetter(total);
+        } else if (!duration(total)) return;
+      }
       if (activeSheet === "profile") setProfile(selectedProfile, true);
     }
     sheet.close();
+    liveDurationSetter = null;
+    liveDurationInitial = null;
   }
 
   function confirmAction(options) {
@@ -285,6 +296,8 @@
     });
     $("ios-picker-sheet").addEventListener("close", () => {
       activeSheet = null;
+      liveDurationSetter = null;
+      liveDurationInitial = null;
       if (lastFocus?.isConnected) lastFocus.focus({preventScroll:true});
     });
     $("ios-confirm-cancel").addEventListener("click", () => finishConfirm(false));
@@ -303,8 +316,17 @@
     setInterval(() => {if (!document.hidden) updateClock();},1000);
     document.addEventListener("visibilitychange", () => {if (!document.hidden) updateClock();});
   }
+  function openLiveDuration(currentMinutes,onSelect) {
+    if (typeof onSelect !== "function") return;
+    const value=Number(currentMinutes);
+    liveDurationInitial=Number.isInteger(value) && value>=1 && value<=240 ? value : 15;
+    liveDurationSetter=onSelect;
+    openSheet("duration");
+  }
+
   window.UbuntuIOS = {
     init,confirm:confirmAction,notify:toast,renderPreview:preview,clearPreview,
+    openLiveDuration,
     profileDirty:()=>profileDirty,markProfileSynced:()=>{profileDirty=false;},
     setProfile,
     syncProfileLabel:()=>displayProfile($("profile-selector").value),

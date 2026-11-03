@@ -14,8 +14,10 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/ios-controls.css">
   <link rel="stylesheet" href="/cpu-details.css">
+  <link rel="stylesheet" href="/power-live.css">
   <script src="/ios-ui.js" defer></script>
   <script src="/cpu-details.js" defer></script>
+  <script src="/power-live.js" defer></script>
   <script src="/app.js" defer></script>
   <title>Ubuntu Control</title>
 </head>
@@ -47,7 +49,7 @@
       <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
       <div class="sidebar-bottom">
         <span class="privacy-dot"></span> Private via Tailscale
-        <div class="side-version">Ubuntu Control v0.9</div>
+        <div class="side-version">Ubuntu Control v1.0</div>
       </div>
     </nav>
     <main id="main">
@@ -206,8 +208,62 @@
         <div class="control-section-head"><h2>System controls</h2><span class="section-helper" id="control-access">Checking operator access…</span></div>
         <div class="command-feedback" id="command-feedback" role="status" aria-live="polite" hidden></div>
         <div class="control-grid">
+          <article class="control-card panel" id="real-power-card" aria-label="Real Ubuntu power and shutdown timer">
+            <div class="control-card-header">
+              <div class="control-icon">⏻</div>
+              <div><h3>Ubuntu Power</h3><p>Private · real shutdown, restart &amp; timer</p></div>
+              <span class="feature-state" id="live-power-capability">Checking</span>
+            </div>
+            <div class="live-power-readiness" id="live-power-readiness">
+              <span class="live-power-dot" aria-hidden="true"></span>
+              <div><strong id="live-power-headline">Verifying workstation…</strong>
+                <small id="live-power-description">Atlas, Codex, CPUWM and running work must be checked</small></div>
+            </div>
+            <div class="live-power-facts" aria-label="Real power safety evidence">
+              <span id="live-atlas-fact">Atlas · checking</span>
+              <span id="live-codex-fact">Codex · checking</span>
+              <span id="live-job-fact">Active jobs · checking</span>
+            </div>
+            <div class="ios-setting-heading"><span>Power operation</span><small>REAL · OWNER CONFIRMATION</small></div>
+            <div class="ios-segment" role="group" aria-label="Ubuntu real power operation">
+              <button type="button" data-live-mode="shutdown" class="ios-segment-item selected" aria-pressed="true"><span class="ios-segment-emoji" aria-hidden="true">⏻</span> Shut down</button>
+              <button type="button" data-live-mode="restart" class="ios-segment-item" aria-pressed="false"><span class="ios-segment-emoji" aria-hidden="true">↻</span> Restart</button>
+            </div>
+            <div class="ios-setting-heading ios-time-heading"><span>When?</span><small>30 SEC — 4 HOURS</small></div>
+            <div class="live-preset-list" role="group" aria-label="Real power delay">
+              <button type="button" class="ios-preset selected" data-live-delay="0" aria-pressed="true">Now</button>
+              <button type="button" class="ios-preset" data-live-delay="5">5m</button>
+              <button type="button" class="ios-preset" data-live-delay="15">15m</button>
+              <button type="button" class="ios-preset" data-live-delay="30">30m</button>
+              <button type="button" class="ios-preset" data-live-delay="60">1h</button>
+              <button type="button" class="ios-preset" data-live-delay="120">2h</button>
+              <button type="button" class="ios-preset" data-live-delay="240">4h</button>
+              <button type="button" class="ios-preset live-custom-preset" id="live-custom-picker" aria-haspopup="dialog" aria-controls="ios-picker-sheet">Custom…</button>
+            </div>
+            <div class="live-clock-panel" id="live-clock-panel">
+              <div class="live-clock-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5l3.5 2"></path></svg></div>
+              <div class="live-clock-info"><span class="live-clock-eyebrow">REAL POWER TIMER · SAFE CANCEL</span>
+                <strong id="live-timer-state">No scheduled action</strong>
+                <small id="live-timer-detail">Power runs only after a fresh safety recheck</small></div>
+              <strong class="live-timer-countdown" id="live-timer-countdown">—</strong>
+            </div>
+            <label class="live-acknowledgment" for="live-power-loss-accepted">
+              <input id="live-power-loss-accepted" type="checkbox">
+              <span><strong>I understand the data-loss risk.</strong> Shut down or restart Ubuntu even if documents, browser tabs or terminal work are not saved. Any unsaved changes may be permanently lost.</span>
+            </label>
+            <div class="ios-action-row">
+              <button type="button" class="ios-action-main" id="live-power-arm" disabled>Schedule real shutdown</button>
+              <button type="button" class="ios-action-secondary" id="live-power-cancel" disabled>Cancel timer</button>
+            </div>
+            <p class="live-power-disclaimer" id="live-power-status" role="status" aria-live="polite">Only your verified Tailnet account can request a real power action. No automatic action is currently armed.</p>
+            <details class="live-power-warnings" id="live-power-more">
+              <summary>Safety warnings &amp; blocking reasons (<span id="live-power-count">0</span>)</summary>
+              <ul id="live-power-details"></ul>
+            </details>
+          </article>
+
           <article class="control-card panel" id="power-preview-card">
-            <div class="control-card-header"><div class="control-icon">◷</div><div><h3>Power safety &amp; timer</h3><p>Read-only safety and timer simulation</p></div></div>
+            <div class="control-card-header"><div class="control-icon">◷</div><div><h3>Power safety inspection</h3><p>Detailed read-only evidence and optional timer simulation</p></div></div>
             <p class="control-note">Simulation only — will NOT turn off or restart Ubuntu.</p>
             <p id="power-safety-status" role="status">Safety data unavailable</p>
             <div class="power-guard-summary" aria-label="Ubuntu power readiness">

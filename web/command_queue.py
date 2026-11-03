@@ -63,6 +63,31 @@ class CommandQueue:
             self.db.execute("INSERT INTO commands VALUES (?,?,?,?,?)", (ident, json.dumps(payload), now, now + 45, "queued"))
             return {"id": ident, "status": "queued"}
 
+    def enqueue_power(self, payload):
+        """Internal-only delivery for an owner-armed Pi timer, never API input.
+
+        /api/commands deliberately rejects power actions. This method is
+        called only after the timer deadline and fresh signed safety checks.
+        """
+        if (not isinstance(payload, dict) or set(payload) !=
+                {"action", "value", "confirm", "ack_unsaved_loss"}
+                or payload["action"] not in {"power.shutdown", "power.restart"}
+                or payload["value"] is not None or payload["confirm"] is not True
+                or payload["ack_unsaved_loss"] is not True):
+            raise ValueError("Invalid internal power command")
+        with self.lock, self.db:
+            self._expire()
+            if self.db.execute(
+                "SELECT count(*) FROM commands WHERE status IN ('queued','delivered')"
+            ).fetchone()[0]:
+                raise OverflowError("Other commands must finish before powering down")
+            ident, now=secrets.token_hex(16),int(time.time())
+            self.db.execute(
+                "INSERT INTO commands VALUES(?,?,?,?,?)",
+                (ident,json.dumps(payload),now,now+45,"queued"),
+            )
+            return {"id":ident,"status":"queued"}
+
     def status(self, ident):
         with self.lock, self.db:
             self._expire()

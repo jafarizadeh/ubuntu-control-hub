@@ -105,7 +105,7 @@ class CpuwmSafetyTests(unittest.TestCase):
         return safety.parse_cpuwm(json.dumps(data), self.NOW)
 
     def collect(self, data, atlas=INACTIVE, processes="", inhibitors="No inhibitors listed."):
-        with mock.patch.object(safety, "read_command", side_effect=[atlas, inhibitors, processes, json.dumps(data)]) as reader, mock.patch.object(safety, "datetime", wraps=datetime) as clock, mock.patch.object(safety.subprocess, "Popen") as popen:
+        with mock.patch.object(safety, "read_command", side_effect=[atlas, inhibitors, processes, json.dumps(data)]) as reader, mock.patch.object(safety, "datetime", wraps=datetime) as clock, mock.patch.object(safety, "inspect_power", return_value={"eligible":False,"blockers":["Test: no power authorization"]}), mock.patch.object(safety.subprocess, "Popen") as popen:
             clock.now.return_value = self.NOW
             report = safety.collect_power_safety()
         self.assertEqual(reader.call_args_list, [mock.call(args) for args in

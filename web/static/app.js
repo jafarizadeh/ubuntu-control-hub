@@ -298,10 +298,14 @@ function renderPowerUnavailable() {
 
 function renderDevicePower(desktop, tv, ubuntuFresh) {
   if (ubuntuFresh) {
+    const realReady=desktop.metrics?.power_safety?.real_power?.eligible === true;
     setPowerCard("desktop", {
       state: "on", badge: "On", detail: "Online · verified Ubuntu telemetry",
-      label: "Power off unavailable", action: null,
-      note: "Ubuntu is running. Shutdown remains locked to protect Atlas, unsaved work and active jobs.",
+      label: realReady ? "Shutdown / restart options" : "View power safety",
+      action: "open-power-controls",
+      note: realReady
+        ? "Open owner-confirmed real shutdown or restart. Work must be saved before arming."
+        : "Power is blocked until Atlas and other work are safe. View the reasons.",
     });
   } else if (desktop.ping_reachable) {
     setPowerCard("desktop", {
@@ -407,7 +411,10 @@ async function refreshStatus(manual = false) {
   el("refresh-btn").disabled = true;
   try {
     renderStatus(await api("/api/status"));
-    if (app.tab === "control") await refreshPowerPreview();
+    if (app.tab === "control") {
+      await refreshPowerPreview();
+      await window.UbuntuRealPower.refresh();
+    }
     syncControls();
     if (manual) toast("Ubuntu status refreshed.");
   } catch {
@@ -512,6 +519,10 @@ function switchTab(tab) {
 }
 
 async function executeAction(name, button) {
+  if (name === "open-power-controls") {
+    window.UbuntuRealPower.open();
+    return;
+  }
   const actions = {
     "wake-desktop": {path: "/api/wake", payload: {target: "desktop"}, label: "Ubuntu wake request"},
     "wake-tv": {path: "/api/wake", payload: {target: "tv"}, label: "LG wake request"},
@@ -623,6 +634,7 @@ async function loadHistory() {
 async function init() {
   window.UbuntuIOS.init();
   window.UbuntuCPU.init();
+  window.UbuntuRealPower.init();
   el("open-cpu-details").addEventListener("click", () => switchTab("cpu"));
   el("cpu-back-button").addEventListener("click", () => switchTab("dashboard"));
   initCustomization();
@@ -702,6 +714,7 @@ async function refreshControlAccess() {
   }
   syncControls();
   await refreshPowerPreview();
+  await window.UbuntuRealPower.refresh();
 }
 
 function feedback(message, level = "") {
@@ -885,10 +898,21 @@ function paintPowerPreview(data) {
   put("guard-desktop", desktopWork.status === "unverifiable" ?
     (desktopWork.app_categories?.length
       ? "Unverified · " + desktopWork.app_categories.join(", ") : "Unverified") : "Unknown");
-  put("power-safety-status", "Blocked: no power action will be performed. Safety: " + (safety.status || "unknown"));
+  const realPower=safety.real_power || {};
+  const canProceedWithWarning=realPower.eligible === true;
+  put("power-safety-status", canProceedWithWarning
+    ? "Real power safeguards satisfied · unsaved work can be lost only after explicit user acceptance. This preview never executes."
+    : "Real power blocked by the Atlas/workload safeguards · this preview never executes.");
   const list = el("power-safety-details");
   list.replaceChildren();
-  const details = [...(safety.blocked_reasons || []), ...(safety.warnings || [])];
+  // The old conservative read-only list treated *unverifiable saved files*
+  // as a blocker. Real power has its own stricter Atlas/job gate, so avoid
+  // showing a contradictory unsaved-file hard block after consent is allowed.
+  const details = canProceedWithWarning
+    ? [...(realPower.warnings || [])]
+    : [...(realPower.blockers || []),...(realPower.warnings || []),
+       ...(safety.blocked_reasons || []).filter(item=>
+         !String(item).includes("Unsaved desktop work"))];
   put("power-safety-count", String(details.length));
   for (const text of details) {
     const item = document.createElement("li");

@@ -1,0 +1,48 @@
+/* Ubuntu Control v1.0: real owner-confirmed power with iOS touch targets. */
+#real-power-card{border:1px solid #d6e8e4;box-shadow:0 8px 28px #1d555b0e}
+.live-power-readiness{border-radius:15px;border:1px solid #e1e9ed;padding:15px;display:flex;align-items:center;gap:12px;background:#f6f9fb;margin:18px 0 12px}
+.live-power-dot{width:13px;height:13px;flex-shrink:0;border-radius:50%;background:#c1a38c;box-shadow:0 0 0 5px #f3ebe6}
+.live-power-readiness.is-ready{background:#eef9f5;border-color:#d1ebe0}
+.live-power-readiness.is-ready .live-power-dot{background:#2fb089;box-shadow:0 0 0 5px #dff5eb}
+.live-power-readiness.is-blocked{background:#fff7f5;border-color:#f0e3e0}
+.live-power-readiness.is-blocked .live-power-dot{background:#bd7775;box-shadow:0 0 0 5px #f9e9e8}
+.live-power-readiness>div{min-width:0;display:flex;flex-direction:column;gap:5px}
+.live-power-readiness strong{font-size:13px;color:#264658;line-height:1.35}
+.live-power-readiness small{font-size:11px;line-height:1.5;color:#7b94a3}
+.live-power-facts{display:flex;gap:6px;flex-wrap:wrap}
+.live-power-facts span{padding:5px 9px;border-radius:99px;background:#eef4f5;color:#5b7e86;font-size:10px;font-weight:690}
+.live-preset-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:11px 0 19px}
+.live-preset-list .ios-preset{min-height:43px;font-size:12px}
+.live-preset-list .live-custom-preset{grid-column:span 1;border-style:dashed}
+.live-clock-panel{display:flex;align-items:center;gap:11px;padding:16px 13px;border-radius:16px;background:linear-gradient(135deg,#122d3c,#1b4851);color:#fff;margin:5px 0 16px;min-height:103px}
+.live-clock-icon{display:grid;place-items:center;width:42px;height:42px;flex-shrink:0;border-radius:13px;background:#ffffff17}
+.live-clock-icon svg{width:25px;height:25px}
+.live-clock-info{display:flex;flex-direction:column;flex:1;min-width:0;gap:5px}
+.live-clock-eyebrow{font-size:9px;font-weight:790;letter-spacing:.8px;color:#add3cc}
+.live-clock-info strong{font-size:13px;line-height:1.25}
+.live-clock-info small{font-size:10px;color:#aac6cc;line-height:1.4}
+.live-timer-countdown{font-size:17px;font-weight:830;font-variant-numeric:tabular-nums;letter-spacing:-.5px;white-space:nowrap;color:#ccf2e6}
+.live-clock-panel.is-armed{background:linear-gradient(135deg,#105746,#176e6a)}
+.live-clock-panel.is-blocked{background:linear-gradient(135deg,#663e45,#79505d)}
+.live-acknowledgment{display:flex;align-items:flex-start;gap:11px;padding:13px;border-radius:14px;background:#f9fafc;border:1px solid #e5eaf0;cursor:pointer;margin:8px 0 18px;color:#617a89;font-size:11px;line-height:1.6}
+.live-acknowledgment input{appearance:none;-webkit-appearance:none;flex-shrink:0;height:21px;width:21px;min-height:21px;margin:2px 0 0;border-radius:7px;border:1.5px solid #b6cad2;background:#fff;position:relative}
+.live-acknowledgment input:checked{background:#177a72;border-color:#177a72}
+.live-acknowledgment input:checked:after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border-bottom:2px solid #fff;border-right:2px solid #fff;transform:rotate(45deg)}
+.live-acknowledgment input:focus-visible{outline:3px solid #80c5bf;outline-offset:3px}
+.live-power-disclaimer{font-size:10px;line-height:1.6;color:#879ca8;margin:12px 0 9px}
+.live-power-warnings{border-top:1px solid #e8eef2;padding-top:13px;margin:14px 0 0;color:#7a8d9d;font-size:11px}
+.live-power-warnings summary{font-weight:760;color:#416b78;cursor:pointer}
+.live-power-warnings ul{padding-left:22px;line-height:1.65;overflow-wrap:anywhere}
+#real-power-card .ios-action-main{background:#aa5d56}
+#real-power-card .ios-action-main:hover:not(:disabled){background:#934d4a}
+#real-power-card .ios-action-main:disabled{background:#eef2f5;color:#7a8d9b}
+#live-power-cancel:not(:disabled){border-color:#cbdee1;color:#136f77;background:#f0f9f8}
+@media(max-width:390px){
+ .live-preset-list{gap:5px}
+ .live-preset-list .ios-preset{font-size:11px;padding:0 2px}
+ .live-clock-panel{gap:7px;padding:13px 11px}
+ .live-clock-icon{width:37px;height:37px}
+ .live-clock-info strong{font-size:12px}
+ .live-timer-countdown{font-size:15px}
+ .live-clock-eyebrow{font-size:8px}
+}

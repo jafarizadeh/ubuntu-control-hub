@@ -21,6 +21,8 @@ def valid_command(command):
     fields = {"id", "action", "value", "created_at", "expires_at"}
     if action == "cpuwm.set_profile":
         fields.add("confirm")
+    if action in ("power.shutdown", "power.restart"):
+        fields.update(("confirm","ack_unsaved_loss"))
     if set(command) != fields:
         return False
     if not isinstance(command["id"], str) or not re.fullmatch(r"[a-f0-9]{32}", command["id"]):
@@ -32,7 +34,9 @@ def valid_command(command):
     return ((action == "audio.set_volume" and type(value) is int and 0 <= value <= 100)
             or (action == "audio.set_mute" and type(value) is bool)
             or (action == "cpuwm.set_profile" and type(value) is str
-                and value in {"quiet", "balanced", "performance"} and command["confirm"] is True))
+                and value in {"quiet", "balanced", "performance"} and command["confirm"] is True)
+            or (action in {"power.shutdown","power.restart"} and value is None
+                and command["confirm"] is True and command["ack_unsaved_loss"] is True))
 
 
 class CommandExecutor:
@@ -121,11 +125,21 @@ class CommandExecutor:
                 argv = ["/usr/bin/wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{value}%"]
             elif action == "audio.set_mute":
                 argv = ["/usr/bin/wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "1" if value else "0"]
-            else:
+            elif action == "cpuwm.set_profile":
                 manager = Path.home() / "cpu-workload-manager/cpuwm.py"
                 if not manager.is_file() or manager.is_symlink():
                     raise ValueError("Workload manager unavailable")
                 argv = [sys.executable, str(manager), "profile", value]
+            elif action in ("power.shutdown","power.restart"):
+                # The outbound Agent intentionally retains NoNewPrivileges=true.
+                # Systemd starts a fixed root-owned one-shot service through
+                # narrowly allowlisted PolicyKit, without sudo/setuid in Agent.
+                unit=("ubuntu-control-power-shutdown.service"
+                      if action=="power.shutdown" else
+                      "ubuntu-control-power-restart.service")
+                argv=["/usr/bin/systemctl","--system","--no-block","start",unit]
+            else:
+                raise ValueError("Unrecognized action")
             if not valid_command(command):
                 raise ValueError("Command expired before execution")
             result = subprocess.run(argv, shell=False, timeout=15, capture_output=True, check=False)

@@ -2,7 +2,20 @@
 
 A private English-language, light-themed, left-to-right PWA for remotely managing Ubuntu Desktop and LG webOS TV through an always-on Raspberry Pi.
 
-**MVP status (v0.9 UI):** The Raspberry Pi hub runs privately over Tailscale HTTPS. The default Dashboard is **Ubuntu-first**: live signed Ubuntu CPU/GPU/RAM/disk/temperature/fan/uptime telemetry, two single-action, stateful SVG power cards for Ubuntu and LG, and locally customizable metric tiles. The Control tab shows actual Ubuntu audio/network/CPUWM status and clearly marks unimplemented remote controls as disabled. Wake-on-LAN and LG webOS controls (when paired) are connected; on/off claims are based on Ubuntu telemetry or read-only webOS power state, never merely on ping. Volume/Mute and confirmed CPUWM profile changes are available through an opt-in, verified Tailnet-owner command channel (see docs/COMMANDS.md). Control now includes read-only Ubuntu power safety and a durable, cancelable timer preview. This is simulation only: it never shuts down or restarts Ubuntu, and real power and terminal operations remain disabled. Power safety now observes bounded CPUWM managed-scope counts and GNOME/Atlas blockers, but cannot verify all running jobs or unsaved files. Safety remains blocked. See [the command protocol](docs/COMMANDS.md) for activation gates.
+**MVP status (v1.0 UI):** The Ubuntu-first PWA remains privately
+available through Tailscale HTTPS on the Raspberry Pi. It displays live signed
+Ubuntu metrics, iOS-style CPU Details, LG webOS power controls and Wake-on-LAN.
+A separate owner-authenticated real-power workflow offers Shutdown, Restart and
+cancelable 30-second-to-4-hour scheduling, with an explicit permanent-data-loss
+warning for unsaved browser tabs, documents and terminal work. Saving and
+closing files are NOT required; the user must consciously accept the risk.
+Atlas and all three physical Codex accounts must have explicit recorded owner
+stops, no active attempts, and CPUWM must be verified idle. A root-owned helper
+rechecks those gates immediately before normal systemd poweroff/reboot; there
+is no force flag, shell command, job kill or implicit Atlas stop. Existing
+preview/simulation and CPU/GPU controls remain separate. Real firmware WOL
+from power-off has not yet been physically verified. See
+[Power Operations](docs/POWER_OPERATIONS.md) for precise controls and limits.
 
 ## Architecture
 
@@ -24,7 +37,10 @@ The backend is Python, and the frontend is static HTML/CSS/JavaScript with no bu
 - CPU Details uses 2-second page and signed Agent updates while an authorized owner views it; the other pages remain on the 15-second UI refresh and the Agent normally reports every 10 seconds.
 - bin/: Raspberry Pi status, Wake-on-LAN, LG pairing and Tailnet publication.
 - agent/desktop_status.py: read-only Ubuntu telemetry (no root, no daemon).
-- agent/power_safety.py: conservative read-only Atlas, CPUWM status, desktop work and inhibitor checks. No power execution.
+- agent/power_safety.py: signed read-only Atlas, CPUWM, GNOME and desktop warnings; real power readiness remains a separate explicit opt-in workflow.
+- agent/power_gate.py and agent/power_execute.py: fail-closed real power safety gate and fixed privileged helper, with no automatic file saving or process kill.
+- deploy/ubuntu-control-power-*.service and deploy/51-ubuntu-control-power.rules.example: root-owned restricted one-shot power services and narrowly scoped PolicyKit authorization; the outbound Agent keeps NoNewPrivileges=true.
+- web/power_schedule.py: durable owner-armed, cancelable real timer and at-most-once signed Ubuntu dispatch.
 - agent/atlas_guard.py: read-only Atlas SQLite proof separating idle/RUN from owner STOP and verifying future per-Codex stop acknowledgements; no stopping or power action (see docs/ATLAS_POWER_POLICY.md and docs/ATLAS_CODEX_STOP_BRIDGE.md).
 - agent/codex_stop_attestation.py: fail-closed 15-second, reboot-bound 3-worker owner-stop receipt verifier for the future Atlas producer; current Atlas does not publish these receipts.
 - web/power_preview.py: persisted timer simulation, separate from the command queue.
@@ -64,6 +80,7 @@ Do not run tailscale funnel. A private HTTPS hostname appears in tailscale serve
     python3 -m compileall -q bin web tests
     node --check web/static/app.js
     node --check web/static/sw.js
+    node --check web/static/power-live.js
     python3 -m json.tool config/devices.example.json
 
 These checks do not send power or TV commands.

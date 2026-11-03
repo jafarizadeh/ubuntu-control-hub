@@ -1,0 +1,17 @@
+[Unit]
+Description=Ubuntu Control owner-confirmed gated system restart
+Documentation=man:systemctl(1)
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 -I /usr/local/libexec/ubuntu-control-power/power_execute.py --execute restart unsaved-loss-accepted
+NoNewPrivileges=true
+UMask=0077
+PrivateTmp=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true

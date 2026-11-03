@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 from agent_broker import AgentBroker
 from power_preview import PreviewStore
+from power_schedule import PowerSchedule
 from tv_power import classify_power_reply
 from cpu_watch import CPUWatch
 
@@ -36,6 +37,7 @@ TV_DATABASE = CONFIG / ".aiopylgtv.sqlite"
 STATUS_COMMAND = ROOT / "bin" / "status.py"
 BROKER = AgentBroker(CONFIG / "desktop_agent.pub", state_file=ROOT / "data" / "command-state.sqlite")
 PREVIEWS = PreviewStore(ROOT / "data" / "power-preview.sqlite")
+REAL_POWER = PowerSchedule(ROOT / "data" / "power-schedule.sqlite")
 CPU_WATCH = CPUWatch(ttl_seconds=7)
 OPERATOR = CONFIG / "operator.json"
 WOL_COMMAND = ROOT / "bin" / "wake.py"
@@ -78,7 +80,7 @@ def status():
             except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired):
                 pass
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "0.9.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "1.0.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -319,6 +321,56 @@ def safe_desktop_work(value):
             "session_shutdown_blocked": blocked}
 
 
+def sanitized_real_power(value):
+    """Small allowlisted result from the signed Ubuntu safety observer."""
+    unavailable={"eligible":False,"atlas_owner_paused":False,"codex_owner_paused_count":0,
+                 "active_jobs":None,"cpuwm_verified":False,"processes_verified":False,
+                 "blockers":["Workstation readiness is not verified."],
+                 "warnings":["Save all desktop work before any power action."]}
+    if not isinstance(value,dict):
+        return unavailable
+    bools=("eligible","atlas_owner_paused","cpuwm_verified","processes_verified")
+    if any(type(value.get(k)) is not bool for k in bools):
+        return unavailable
+    roles=value.get("codex_owner_paused_count")
+    count=value.get("active_jobs")
+    if (type(roles) is not int or not 0<=roles<=3
+            or count is not None and (type(count) is not int or not 0<=count<=100000)):
+        return unavailable
+    for k in ("blockers","warnings"):
+        items=value.get(k)
+        if (not isinstance(items,list) or len(items)>16 or
+                any(type(x) is not str or len(x)>250 for x in items)):
+            return unavailable
+    eligible=(value["eligible"] is True and not value["blockers"] and
+              value["atlas_owner_paused"] is True and roles==3 and count==0 and
+              value["cpuwm_verified"] is True and value["processes_verified"] is True)
+    return {**unavailable,**{k:value[k] for k in bools if k!="eligible"},
+            "eligible":eligible,"codex_owner_paused_count":roles,
+            "active_jobs":count,"blockers":list(value["blockers"]),
+            "warnings":list(value["warnings"])}
+
+
+def live_power_ready(safety=None):
+    """Owner timer may arm only against a fresh signed and current Ubuntu report."""
+    safety=safety if safety is not None else power_safety()
+    if safety.get("status")!="fresh" or safety.get("real_power",{}).get("eligible") is not True:
+        return False
+    try:
+        age=time.time()-datetime.fromisoformat(safety["checked_at"]).timestamp()
+        return -5 <= age <= 15
+    except (KeyError,TypeError,ValueError,OverflowError):
+        return False
+
+
+def live_power_response():
+    safety=power_safety()
+    return {"schedule":REAL_POWER.status(),"real_power":safety.get("real_power"),
+            "ready_to_arm":live_power_ready(safety),
+            "safety_checked_at":safety.get("checked_at"),
+            "warning":"Unsaved files are NOT saved automatically; explicit confirmation accepts possible permanent loss."}
+
+
 def power_safety():
     """Use signed Ubuntu data only; never collect Pi hardware metrics here."""
     state = BROKER.desktop_state()
@@ -375,7 +427,8 @@ def power_safety():
             "status": "fresh", "safe_to_request": False,
             "cpuwm": safe_cpuwm_summary(safety.get("cpuwm")),
             "desktop_work": safe_desktop_work(safety.get("desktop_work")),
-            "atlas_control": atlas}
+            "atlas_control": atlas,
+            "real_power": sanitized_real_power(safety.get("real_power"))}
 
 
 def preview_response(result):
@@ -385,7 +438,7 @@ def preview_response(result):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/0.9"
+    server_version = "UbuntuControl/1.0"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -440,11 +493,15 @@ class Handler(BaseHTTPRequestHandler):
         if not self._host_ok():
             return self._json({"error": "Host not allowed"}, 403)
         path = urlsplit(self.path).path
-        if path in {"/api/power/safety", "/api/power/preview"}:
+        if path in {"/api/power/safety", "/api/power/preview", "/api/power/live"}:
             if not can_control(self.headers):
                 return self._json({"error": "Control denied"}, 403)
             try:
-                return self._json(power_safety() if path.endswith("/safety") else preview_response(PREVIEWS.get()))
+                return self._json(
+                    power_safety() if path.endswith("/safety") else
+                    live_power_response() if path.endswith("/live") else
+                    preview_response(PREVIEWS.get())
+                )
             except (OSError, sqlite3.Error):
                 return self._json({"error": "Power preview unavailable"}, 503)
         if path == "/api/control/capabilities":
@@ -461,7 +518,7 @@ class Handler(BaseHTTPRequestHandler):
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "0.9.0", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "1.0.0", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -504,11 +561,20 @@ class Handler(BaseHTTPRequestHandler):
                 if not BROKER.accept(raw):
                     return self._json({"error": "Invalid agent report"}, 400)
                 result = BROKER.commands.report_response(json.loads(raw).get("ack"))
+                if "command" not in result:
+                    # Dispatch only AFTER an authenticated fresh Ubuntu report.
+                    # At most once, and only if the owner-armed deadline is due.
+                    REAL_POWER.dispatch_due(
+                        live_power_ready(),
+                        BROKER.commands.enqueue_power,
+                    )
+                    result = BROKER.commands.report_response(None)
                 result["cpu_watch_active"] = CPU_WATCH.active()
             except (ValueError, OSError, sqlite3.Error):
                 return self._json({"error": "Agent report unavailable"}, 503)
             return self._json(result)
         if path in {"/api/commands", "/api/power/preview", "/api/power/cancel",
+                    "/api/power/live/arm", "/api/power/live/cancel",
                     "/api/cpu/watch"} and not can_control(self.headers):
             return self._json({"error": "Control denied"}, 403)
         origin = self.headers.get("Origin", "")
@@ -548,6 +614,28 @@ class Handler(BaseHTTPRequestHandler):
                     "checked_at_unix": report.get("checked_at_unix") if isinstance(report, dict) else None,
                 },
             })
+        if path == "/api/power/live/arm":
+            if not live_power_ready():
+                return self._json({"error":"Atlas, CPUWM or active work is not confirmed safe for power."},409)
+            try:
+                return self._json({"ok":True,**live_power_response(),
+                                   "schedule":REAL_POWER.arm(request)},202)
+            except (ValueError,TypeError):
+                return self._json({"error":"Invalid power confirmation or delay"},400)
+            except FileExistsError:
+                return self._json({"error":"Cancel the current real timer first"},409)
+            except (OSError,sqlite3.Error):
+                return self._json({"error":"Real power timer unavailable"},503)
+        if path == "/api/power/live/cancel":
+            try:
+                result=REAL_POWER.cancel(request)
+                return self._json({"ok":True,"schedule":result})
+            except ValueError:
+                return self._json({"error":"Invalid cancellation"},400)
+            except FileExistsError:
+                return self._json({"error":"Power command already sent and cannot be canceled"},409)
+            except (OSError,sqlite3.Error):
+                return self._json({"error":"Real power timer unavailable"},503)
         if path in {"/api/power/preview", "/api/power/cancel"}:
             try:
                 result = PREVIEWS.create(request) if path.endswith("/preview") else PREVIEWS.cancel(request)
@@ -641,7 +729,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v0.9 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v1.0 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 

@@ -29,6 +29,8 @@ jobs:
           node --check web/static/app.js
           node --check web/static/ios-ui.js
           node --check web/static/cpu-details.js
+          node --check web/static/power-live.js
+          node --check < deploy/51-ubuntu-control-power.rules.example
           node --check web/static/sw.js
       - name: Device config template
         run: python -m json.tool config/devices.example.json > /dev/null

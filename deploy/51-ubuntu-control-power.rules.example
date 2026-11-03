@@ -1,0 +1,17 @@
+/* Ubuntu Control: allow only the local owner to START three exact power units.
+ * The long-running Ubuntu Agent retains NoNewPrivileges=true.
+ * The root-owned helper revalidates Atlas, Codex and CPUWM before any effect.
+ * Replace __OWNER_USER__ at installation; never grant unrestricted unit rights.
+ */
+polkit.addRule(function(action, subject) {
+    if (action.id !== "org.freedesktop.systemd1.manage-units") return polkit.Result.NOT_HANDLED;
+    if (subject.user !== "__OWNER_USER__") return polkit.Result.NOT_HANDLED;
+    if (action.lookup("verb") !== "start") return polkit.Result.NOT_HANDLED;
+    var unit = action.lookup("unit");
+    if (unit === "ubuntu-control-power-check.service" ||
+        unit === "ubuntu-control-power-shutdown.service" ||
+        unit === "ubuntu-control-power-restart.service") {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});
