@@ -84,3 +84,42 @@ sent by deployment or QA.
 
 The later Applications, Files and Terminals feature will be a separate
 navigation area. It must never silently force a save before poweroff.
+
+
+## Unified Power card (v1.1)
+
+The Control screen has one Ubuntu Power card with one real timer. Safety details
+expand inside it and do not run any command. The former separate Power safety
+inspection card and its simulated timer were removed from the frontend, along
+with obsolete initialization, polling, and preview-only duration dependencies.
+The server-side preview API remains harmless and isolated for compatibility.
+
+GET /api/power/live returns the same sanitized signed snapshot for readiness,
+blocking reasons, warnings, and supplemental inspection. The server supplies a
+remaining 15-second freshness budget; the browser consumes it using monotonic
+time and clears consent after it expires. It never trusts an older 35-second
+telemetry window as permission to arm real power.
+
+POST /api/power/live/cancel now requires the observed schedule_id. A request
+from a stale browser tab cannot cancel a different timer. Empty cancellation
+is harmless only when no schedule exists; legacy clients must refresh. A sent
+request cannot be replaced until its existing resolution window has expired.
+Sent or completed_unverified means delivery was attempted, NOT that shutdown
+or restart was proved successful.
+
+If a poll or arm response is lost, the app preserves any last confirmed timer
+and warns that it may still execute. It keeps cancellation recovery available,
+uses an eight-second request timeout, and reconciles uncertain writes before
+allowing another arm. Reopening a scheduled restart restores its actual action
+and delay, rather than showing the default Shutdown / Now controls.
+
+The root-owned helper, Atlas STOP/three explicit OFF checks, CPUWM safeguards,
+owner authentication, CSRF, signed commands, and unsaved-data-loss consent are
+unchanged. Unsupported future worker proof is hidden under optional diagnostics
+and never overrides current real-power authorization.
+
+
+Coordinated client/API rollout: real arm requests now require the version-2
+power protocol header. Old cached PWAs are explicitly told to update and cannot
+arm a timer they do not know how to cancel by ID. This check is in addition to,
+not instead of, owner identity, CSRF, loss consent and live readiness checks.

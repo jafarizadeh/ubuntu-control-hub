@@ -49,7 +49,7 @@
       <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
       <div class="sidebar-bottom">
         <span class="privacy-dot"></span> Private via Tailscale
-        <div class="side-version">Ubuntu Control v1.0</div>
+        <div class="side-version">Ubuntu Control v1.1</div>
       </div>
     </nav>
     <main id="main">
@@ -255,83 +255,38 @@
               <button type="button" class="ios-action-main" id="live-power-arm" disabled>Schedule real shutdown</button>
               <button type="button" class="ios-action-secondary" id="live-power-cancel" disabled>Cancel timer</button>
             </div>
-            <p class="live-power-disclaimer" id="live-power-status" role="status" aria-live="polite">Only your verified Tailnet account can request a real power action. No automatic action is currently armed.</p>
-            <details class="live-power-warnings" id="live-power-more">
-              <summary>Safety warnings &amp; blocking reasons (<span id="live-power-count">0</span>)</summary>
+            <p class="live-power-disclaimer" id="live-power-status" role="status" aria-live="polite">Only your verified Tailnet account can request a real power action. Checking the current timer status…</p>
+            <details class="live-power-warnings unified-safety-details" id="live-power-more">
+              <summary><span>Safety details</span><span class="safety-summary-meta" id="live-details-status">Checking</span></summary>
+              <p class="safety-snapshot-note" id="live-inspection-age">Waiting for the same verified report used by the power controls.</p>
+              <div class="power-guard-summary" aria-label="Details of the current power safety check">
+                <div><span>Atlas service</span><strong id="guard-atlas">Unknown</strong></div>
+                <div><span>Atlas scheduler</span><strong id="guard-atlas-dispatch">Unknown</strong></div>
+                <div><span>Codex owner switches</span><strong id="guard-owner-switches">Unknown</strong></div>
+                <div><span>Active Atlas attempts</span><strong id="guard-atlas-attempts">Unknown</strong></div>
+                <div><span>CPUWM workload check</span><strong id="guard-cpuwm">Unknown</strong></div>
+                <div><span>Known active processes</span><strong id="guard-processes">Unknown</strong></div>
+                <div><span>Unsaved desktop work</span><strong id="guard-desktop">Unverified · your consent is required</strong></div>
+              </div>
+              <p class="guard-hint">Idle or quota-limited Codex agents do not count as user stop. Saving documents is optional; accepting possible data loss is mandatory.</p>
+              <div id="live-hard-blockers" hidden>
+                <h4 class="safety-list-title">Must be resolved before power</h4>
+                <ul id="live-blocking-details"></ul>
+              </div>
+              <h4 class="safety-list-title">Warnings to acknowledge (<span id="live-power-count">0</span>)</h4>
               <ul id="live-power-details"></ul>
+              <details class="advanced-proof-details" id="live-proof-details" hidden>
+                <summary>Advanced worker proof <span>Supplementary evidence</span></summary>
+                <div class="power-guard-summary">
+                  <div><span>Worker proof</span><strong id="guard-codex-stop">Not available</strong></div>
+                  <div><span>Worker acknowledgements</span><strong id="guard-stop-acks">—</strong></div>
+                  <div><span>Dispatch barrier</span><strong id="guard-stop-barrier">Not verified</strong></div>
+                </div>
+                <p class="guard-hint">Supplementary diagnostics only. These do not override the owner-stop, active-job or final power safeguards.</p>
+              </details>
             </details>
           </article>
 
-          <article class="control-card panel" id="power-preview-card">
-            <div class="control-card-header"><div class="control-icon">◷</div><div><h3>Power safety inspection</h3><p>Detailed read-only evidence and optional timer simulation</p></div></div>
-            <p class="control-note">Simulation only — will NOT turn off or restart Ubuntu.</p>
-            <p id="power-safety-status" role="status">Safety data unavailable</p>
-            <div class="power-guard-summary" aria-label="Ubuntu power readiness">
-              <div><span>Atlas service</span><strong id="guard-atlas">Unknown</strong></div>
-              <div><span>Atlas scheduler</span><strong id="guard-atlas-dispatch">Unknown</strong></div>
-              <div><span>Active Atlas attempts</span><strong id="guard-atlas-attempts">Unknown</strong></div>
-              <div><span>Advanced worker proof</span><strong id="guard-codex-stop">Awaiting verification</strong></div>
-              <div><span>Worker acknowledgements</span><strong id="guard-stop-acks">—</strong></div>
-              <div><span>Dispatch barrier</span><strong id="guard-stop-barrier">Not verified</strong></div>
-              <div><span>CPUWM extra scopes</span><strong id="guard-cpuwm">Unknown</strong></div>
-              <div><span>Unsaved desktop work</span><strong id="guard-desktop">Unverified</strong></div>
-            </div>
-            <p class="guard-hint">Idle Codex agents, empty queues and quota limits do not count as user stop. Atlas in RUN can dispatch new work at any time. Zero CPUWM scopes does not prove system idleness.</p>
-            <details id="power-safety-more">
-              <summary>View safety details (<span id="power-safety-count">0</span>)</summary>
-              <ul id="power-safety-details"></ul>
-            </details>
-            <div class="ios-setting-heading"><span>Preview action</span><small>SIMULATION ONLY</small></div>
-            <div class="ios-segment" role="group" aria-label="Simulated power action">
-              <button type="button" class="ios-segment-item selected" data-preview-mode="shutdown" aria-pressed="true">
-                <span class="ios-segment-emoji" aria-hidden="true">⏻</span> Shutdown
-              </button>
-              <button type="button" class="ios-segment-item" data-preview-mode="restart" aria-pressed="false">
-                <span class="ios-segment-emoji" aria-hidden="true">↻</span> Restart
-              </button>
-            </div>
-            <input id="power-preview-action" type="hidden" value="shutdown">
-            <div class="ios-setting-heading ios-time-heading"><span>Duration</span><small>1 MIN — 4 HOURS</small></div>
-            <button type="button" class="ios-duration-trigger" id="duration-picker-open" aria-haspopup="dialog" aria-controls="ios-picker-sheet">
-              <span class="ios-time-symbol" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                  <circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5l3.5 2"></path>
-                </svg>
-              </span>
-              <span class="ios-duration-text"><strong id="duration-display">15 min</strong><small>Tap to adjust duration</small></span>
-              <span class="ios-chevron" aria-hidden="true">›</span>
-            </button>
-            <input id="power-preview-delay" type="hidden" value="15">
-            <div class="ios-preset-list" role="group" aria-label="Quick timer presets">
-              <button type="button" class="ios-preset" data-duration="5">5m</button>
-              <button type="button" class="ios-preset selected" data-duration="15" aria-pressed="true">15m</button>
-              <button type="button" class="ios-preset" data-duration="30">30m</button>
-              <button type="button" class="ios-preset" data-duration="60">1h</button>
-              <button type="button" class="ios-preset" data-duration="120">2h</button>
-              <button type="button" class="ios-preset" data-duration="240">4h</button>
-            </div>
-            <div class="ios-preview-meter" aria-live="off" aria-label="Timer preview status">
-              <div class="ios-ring-wrap">
-                <svg class="ios-timer-ring" viewBox="0 0 100 100" aria-hidden="true">
-                  <circle cx="50" cy="50" r="43" class="ios-ring-back"/>
-                  <circle cx="50" cy="50" r="43" class="ios-ring-progress" id="ios-ring-progress"/>
-                </svg>
-                <span id="ios-timer-readout" class="ios-timer-readout">—</span>
-              </div>
-              <div class="ios-preview-info">
-                <div class="ios-preview-kicker">POWER TIMER · PREVIEW</div>
-                <strong id="ios-timer-state">No active preview</strong>
-                <small id="ios-timer-sync">Server-synced, never executes</small>
-                <span class="ios-preview-tag">NOT ARMED</span>
-              </div>
-            </div>
-            <div class="ios-action-row">
-              <button class="ios-action-main" id="power-preview-create" type="button" disabled>Start preview</button>
-              <button class="ios-action-secondary" id="power-preview-cancel" type="button" disabled>Cancel</button>
-            </div>
-            <p id="power-preview-status" role="status" aria-live="polite">Preview unavailable</p>
-            <p class="control-note">Simulation only. No shutdown or restart command is sent.</p>
-          </article>
           <article class="control-card panel">
             <div class="control-card-header"><div class="control-icon">♫</div><div><h3>Sound</h3><p>Ubuntu audio output</p></div><span class="feature-state" id="audio-capability">Read only</span></div>
             <div class="setting-line"><span>Output volume</span><strong id="control-volume">—</strong></div>

@@ -132,30 +132,27 @@ class RepositorySmokeTests(unittest.TestCase):
         html=(ROOT/"web/static/index.html").read_text()
         ui=(ROOT/"web/static/ios-ui.js").read_text()
         css=(ROOT/"web/static/ios-controls.css").read_text()
-        js=(ROOT/"web/static/app.js").read_text()
+        js=(ROOT/"web/static/power-live.js").read_text()
         worker=(ROOT/"web/static/sw.js").read_text()
-        for name in ("ios-picker-sheet", "ios-confirm-dialog", "ios-hours-wheel",
-                     "ios-minutes-wheel", "ios-sheet-done", "ios-confirm-submit",
-                     "duration-picker-open", "profile-picker-open", "ios-ring-progress",
-                     "ios-timer-readout", "power-preview-delay", "power-preview-action"):
-            self.assertIn('id="'+name+'"', html)
-        self.assertIn('data-duration="240"', html)
-        self.assertIn('data-profile-option="performance"', html)
-        self.assertNotIn('<select id="profile-selector"', html)
-        self.assertNotIn('<select id="power-preview-action"', html)
-        self.assertNotIn('type="number" id="power-preview-delay"', html)
-        self.assertNotIn("window.confirm(", js)
-        self.assertIn('dialog.showModal()', ui)
-        self.assertIn('preview_only !== true', ui)
-        self.assertIn('will_execute !== false', ui)
-        self.assertIn('performance.now()', ui)
-        self.assertIn('Raspberry Pi remains authoritative', ui)
-        self.assertIn("prefers-reduced-motion", css)
-        self.assertIn(".ios-picker-sheet::backdrop", css)
-        self.assertIn("/ios-controls.css", worker)
-        self.assertIn("/ios-ui.js", worker)
-        self.assertIn('method: "POST"', js)
-        self.assertIn('cancel ? "/api/power/cancel" : "/api/power/preview"', js)
+        for name in ("ios-picker-sheet","ios-confirm-dialog","ios-hours-wheel",
+                     "ios-minutes-wheel","ios-sheet-done","ios-confirm-submit",
+                     "live-custom-picker","profile-picker-open","live-timer-countdown"):
+            self.assertIn('id="'+name+'"',html)
+        self.assertIn('data-live-delay="240"',html)
+        self.assertIn('data-profile-option="performance"',html)
+        self.assertNotIn('id="power-preview-card"',html)
+        self.assertNotIn('power-preview',ui)
+        self.assertNotIn("window.confirm(",js)
+        self.assertIn('dialog.showModal()',ui)
+        self.assertIn('openLiveDuration',ui)
+        self.assertIn('performance.now()',js)
+        self.assertIn('safety_valid_for_seconds',js)
+        self.assertIn('prefers-reduced-motion',css)
+        self.assertIn('.ios-picker-sheet::backdrop',css)
+        self.assertIn('/ios-controls.css',worker)
+        self.assertIn('/ios-ui.js',worker)
+        self.assertIn('/api/power/live/arm',js)
+        self.assertIn('/api/power/live/cancel',js)
 
     def test_user_supplied_svg_assets_are_local_and_inert(self):
         import xml.etree.ElementTree as ET
@@ -212,7 +209,7 @@ class RepositorySmokeTests(unittest.TestCase):
     def test_real_codex_stop_bridge_is_read_only_and_expires(self):
         code = (ROOT / "agent/codex_stop_attestation.py").read_text()
         html = (ROOT / "web/static/index.html").read_text()
-        js = (ROOT / "web/static/app.js").read_text()
+        js = (ROOT / "web/static/power-live.js").read_text()
         backend = (ROOT / "web/server.py").read_text()
         doc = (ROOT / "docs/ATLAS_CODEX_STOP_BRIDGE.md").read_text()
         self.assertIn("codex_owner_stop_control", code)
@@ -225,7 +222,7 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn("lease_age > 15", backend)
         self.assertIn('id="guard-stop-acks"', html)
         self.assertIn('id="guard-stop-barrier"', html)
-        self.assertIn("Awaiting Atlas support", js)
+        self.assertIn('proof.status!=="unsupported"', js)
         self.assertIn("Not requested", js)
         self.assertIn("Waiting for workers", js)
         self.assertIn("Verified owner stop", js)
@@ -236,7 +233,7 @@ class RepositorySmokeTests(unittest.TestCase):
 
     def test_atlas_owner_stop_is_separate_from_idle_and_quota(self):
         html = (ROOT / "web/static/index.html").read_text()
-        js = (ROOT / "web/static/app.js").read_text()
+        js = (ROOT / "web/static/power-live.js").read_text()
         py = (ROOT / "agent/atlas_guard.py").read_text()
         for identifier in ("guard-atlas-dispatch","guard-atlas-attempts","guard-codex-stop"):
             self.assertIn('id="' + identifier + '"',html)
@@ -258,15 +255,15 @@ class RepositorySmokeTests(unittest.TestCase):
 
     def test_power_safety_summaries_are_read_only(self):
         html = (ROOT / "web/static/index.html").read_text()
-        js = (ROOT / "web/static/app.js").read_text()
+        js = (ROOT / "web/static/power-live.js").read_text()
         for item in ("guard-atlas", "guard-cpuwm", "guard-desktop"):
             self.assertIn('id="' + item + '"', html)
             self.assertIn('put("' + item + '"', js)
         self.assertIn("Unverified", html)
-        self.assertIn("Zero CPUWM scopes does not prove", html)
-        self.assertIn('id="power-safety-more"', html)
-        self.assertIn('id="power-safety-count"', html)
-        self.assertIn('put("power-safety-count"', js)
+        self.assertIn("Idle or quota-limited Codex agents do not count as user stop", html)
+        self.assertIn('id="live-power-more"', html)
+        self.assertIn('id="live-power-count"', html)
+        self.assertIn('put("live-power-count"', js)
 
         self.assertIn('id="desktop-power-button" disabled', html)
 

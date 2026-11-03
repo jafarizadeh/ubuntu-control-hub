@@ -100,3 +100,15 @@ fast polling. The rest of the dashboard continues at 15-second refresh.
 Unauthorized or failed watch requests fall back to ordinary updates; there is
 no new public listener, shell or privileged command. CPU graph values remain
 real /proc/stat samples from Ubuntu.
+
+
+## Current Power interface (v1.1)
+
+Ubuntu Power combines execution controls with a closed-by-default Safety details
+accordion. There is one timer, one cancellation control, one freshness verdict,
+and no user-facing simulation mode. The summary and detailed rows use a single
+GET /api/power/live response. Blocking Atlas/job conditions are separated from
+unsaved-file warnings; saving remains optional, informed acceptance mandatory.
+Advanced worker proof appears only when supported and is diagnostic, not an
+alternate authorization path. Earlier preview-interface descriptions above are
+historical; the backend compatibility API remains simulation-only.

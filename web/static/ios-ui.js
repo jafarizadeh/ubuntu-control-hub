@@ -4,7 +4,6 @@
   const $ = (id) => document.getElementById(id);
   const DURATION_MAX = 240;
   const WHEEL_ROW = 44;
-  const RING_CIRCUMFERENCE = 2 * Math.PI * 43;
   const validProfiles = new Set(["quiet", "balanced", "performance"]);
   let activeSheet = null;
   let lastFocus = null;
@@ -14,7 +13,6 @@
   let liveDurationSetter = null;
   let liveDurationInitial = null;
   let profileDirty = false;
-  let snapshot = null;
   let scrollFrames = {hours: null, minutes: null};
   let toastTimeout = null;
   let confirmResolver = null;
@@ -23,29 +21,6 @@
     const h = Math.floor(value / 60), m = value % 60;
     if (!h) return value + " min";
     return h + (h === 1 ? " hour" : " hours") + (m ? " " + m + " min" : "");
-  }
-
-  function duration(value) {
-    const n = Number(value);
-    if (!Number.isInteger(n) || n < 1 || n > DURATION_MAX) return false;
-    $("power-preview-delay").value = String(n);
-    $("duration-display").textContent = displayDuration(n);
-    document.querySelectorAll("[data-duration]").forEach((b) => {
-      const active = Number(b.dataset.duration) === n;
-      b.classList.toggle("selected", active);
-      b.setAttribute("aria-pressed", String(active));
-    });
-    return true;
-  }
-
-  function mode(value) {
-    if (!["shutdown", "restart"].includes(value)) return;
-    $("power-preview-action").value = value;
-    document.querySelectorAll("[data-preview-mode]").forEach((b) => {
-      const active = b.dataset.previewMode === value;
-      b.classList.toggle("selected", active);
-      b.setAttribute("aria-pressed", String(active));
-    });
   }
 
   function displayProfile(value) {
@@ -134,8 +109,7 @@
     $("ios-picker-title").textContent = type === "duration" ? "Set duration" : "Workload profile";
     $("ios-sheet-done").disabled = false;
     if (type === "duration") {
-      const selected = liveDurationInitial===null
-        ? Number($("power-preview-delay").value) : liveDurationInitial;
+      const selected = liveDurationInitial===null ? 15 : liveDurationInitial;
       hour = Math.floor(selected / 60);
       minute = selected % 60;
     } else {
@@ -162,7 +136,7 @@
         if (liveDurationSetter) {
           if (!Number.isInteger(total) || total < 1 || total > 240) return;
           liveDurationSetter(total);
-        } else if (!duration(total)) return;
+        } else return;
       }
       if (activeSheet === "profile") setProfile(selectedProfile, true);
     }
@@ -222,62 +196,7 @@
     toastTimeout = setTimeout(() => node.classList.remove("visible"), 4600);
   }
 
-  function preview(data) {
-    if (!data || data.preview_only !== true || data.will_execute !== false) return;
-    const state = data.state || "absent";
-    if (state === "draft") {
-      const remaining = Math.max(0, Number(data.remaining_seconds)||0);
-      const duration = Math.max(1, Number(data.expires_at) - Number(data.created_at)||remaining);
-      snapshot = {remaining,duration,receivedAt:performance.now(),serverTime:Number(data.server_time)||0};
-    } else snapshot = null;
-    $("ios-timer-state").textContent = ({
-      draft: "Preview in progress",
-      elapsed: "Preview finished · no action",
-      canceled: "Preview canceled",
-      absent: "No active preview"
-    })[state] || "Preview unavailable";
-    updateClock();
-  }
-
-  function clearPreview() {
-    snapshot = null;
-    $("ios-timer-readout").textContent = "—";
-    $("ios-timer-state").textContent = "Preview unavailable";
-    $("ios-timer-sync").textContent = "Cannot verify server timer";
-    $("ios-ring-progress").style.strokeDashoffset = String(RING_CIRCUMFERENCE);
-  }
-
-  function updateClock() {
-    if (!snapshot) {
-      $("ios-timer-readout").textContent = "—";
-      $("ios-ring-progress").style.strokeDashoffset = String(RING_CIRCUMFERENCE);
-      $("ios-timer-sync").textContent = "No running simulation · never executes";
-      return;
-    }
-    // Monotonic interpolation is visual only. Raspberry Pi remains authoritative.
-    const estimated = Math.max(0, Math.ceil(snapshot.remaining - (performance.now() - snapshot.receivedAt) / 1000));
-    const hours = Math.floor(estimated / 3600);
-    const mins = Math.floor(estimated % 3600 / 60);
-    const secs = estimated % 60;
-    const pad = (value) => String(value).padStart(2,"0");
-    $("ios-timer-readout").textContent = hours ? hours+":"+pad(mins)+":"+pad(secs) : pad(mins)+":"+pad(secs);
-    const fraction = Math.min(1, estimated / snapshot.duration);
-    $("ios-ring-progress").style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - fraction));
-    $("ios-timer-sync").textContent = estimated
-      ? "Estimated remaining · synced with Raspberry Pi"
-      : "Awaiting server status · no action will execute";
-  }
-
   function init() {
-    // Timer choice: immediate, local-only selection; requires the usual server-side authorization to send a draft.
-    document.querySelectorAll("[data-preview-mode]").forEach((b) => {
-      b.addEventListener("click", () => mode(b.dataset.previewMode));
-    });
-    document.querySelectorAll("[data-duration]").forEach((b) => {
-      b.setAttribute("aria-pressed", String(Number(b.dataset.duration) === 15));
-      b.addEventListener("click", () => duration(Number(b.dataset.duration)));
-    });
-    $("duration-picker-open").addEventListener("click", () => openSheet("duration"));
     $("profile-picker-open").addEventListener("click", () => {
       if (!$("profile-picker-open").disabled) openSheet("profile");
     });
@@ -309,15 +228,10 @@
       if (confirmResolver) {const resolve=confirmResolver; confirmResolver=null; resolve(false);}
       if (lastFocus?.isConnected) lastFocus.focus({preventScroll:true});
     });
-    duration(15);
-    mode("shutdown");
     setProfile("balanced");
-    clearPreview();
-    setInterval(() => {if (!document.hidden) updateClock();},1000);
-    document.addEventListener("visibilitychange", () => {if (!document.hidden) updateClock();});
   }
   function openLiveDuration(currentMinutes,onSelect) {
-    if (typeof onSelect !== "function") return;
+    if (typeof onSelect !== "function" || $("ios-picker-sheet").open) return;
     const value=Number(currentMinutes);
     liveDurationInitial=Number.isInteger(value) && value>=1 && value<=240 ? value : 15;
     liveDurationSetter=onSelect;
@@ -325,11 +239,11 @@
   }
 
   window.UbuntuIOS = {
-    init,confirm:confirmAction,notify:toast,renderPreview:preview,clearPreview,
+    init,confirm:confirmAction,notify:toast,
     openLiveDuration,
     profileDirty:()=>profileDirty,markProfileSynced:()=>{profileDirty=false;},
     setProfile,
     syncProfileLabel:()=>displayProfile($("profile-selector").value),
-    duration,mode,displayDuration,
+    displayDuration,
   };
 })();

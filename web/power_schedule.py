@@ -48,6 +48,7 @@ class PowerSchedule:
         row=db.execute("SELECT token,action,created,deadline,state,detail "
                        "FROM power_schedule WHERE slot=1").fetchone()
         return {
+            "schedule_id":row[0] if row else None,
             "state":row[4] if row else "absent",
             "action":row[1] if row else None,
             "created_at":row[2] if row else None,
@@ -79,8 +80,8 @@ class PowerSchedule:
             db.execute("BEGIN IMMEDIATE")
             self._expire(db,now)
             running=db.execute("SELECT state FROM power_schedule WHERE slot=1").fetchone()
-            if running and running[0] in ("armed","dispatching"):
-                raise FileExistsError("Cancel the existing real power timer first")
+            if running and running[0] in ("armed","dispatching","sent"):
+                raise FileExistsError("An existing timer or dispatched power request is still unresolved")
             db.execute("INSERT OR REPLACE INTO power_schedule "
                        "(slot,token,action,created,deadline,state,detail) "
                        "VALUES(1,?,?,?,?,?,'Owner-confirmed and awaiting safety recheck')",
@@ -88,18 +89,26 @@ class PowerSchedule:
             return self._status(db,now)
 
     def cancel(self,body):
-        if body != {}:
-            raise ValueError("Cancellation takes an empty JSON object")
+        if not isinstance(body,dict) or set(body) not in (set(),{"schedule_id"}):
+            raise ValueError("Cancellation requires the observed schedule identifier")
+        expected=body.get("schedule_id")
+        if expected is not None and (type(expected) is not str or len(expected)!=32
+                or any(ch not in "0123456789abcdef" for ch in expected)):
+            raise ValueError("Invalid schedule identifier")
         with self.lock, closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             self._expire(db,int(time.time()))
-            row=db.execute("SELECT state FROM power_schedule WHERE slot=1").fetchone()
-            if row and row[0]=="dispatching":
+            row=db.execute("SELECT state,token FROM power_schedule WHERE slot=1").fetchone()
+            if row is None:
+                return self._status(db,int(time.time()))
+            if expected!=row[1]:
+                raise FileExistsError("Timer changed; refresh before canceling")
+            if row[0]=="dispatching":
                 raise FileExistsError("Power command is already being dispatched")
-            if row and row[0]=="sent":
+            if row[0]=="sent":
                 raise FileExistsError("Power command was already sent to Ubuntu; cannot cancel")
             db.execute("UPDATE power_schedule SET state='canceled',detail='Canceled by owner' "
-                       "WHERE slot=1 AND state='armed'")
+                       "WHERE slot=1 AND token=? AND state='armed'",(expected,))
             return self._status(db,int(time.time()))
 
     def dispatch_due(self,ready,enqueue):

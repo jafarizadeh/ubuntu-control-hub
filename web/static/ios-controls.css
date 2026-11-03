@@ -20,25 +20,12 @@
 .ios-preset{min-width:0;min-height:38px;border:1px solid #e4ebf1;background:#f7fafc;color:#71859a;border-radius:11px;font-weight:750;font-size:11px}
 .ios-preset.selected{background:#e6f4ef;border-color:#b9ddd0;color:#18735d}
 .ios-preset:not(.selected):hover{background:#edf4f6}
-.ios-preview-meter{margin-top:22px;padding:18px 14px;min-height:136px;background:linear-gradient(135deg,#f2f9f8,#f8fafc);border:1px solid #e0edeb;border-radius:18px;display:flex;align-items:center;gap:16px}
-.ios-ring-wrap{width:112px;height:112px;position:relative;flex-shrink:0}
-.ios-timer-ring{display:block;width:100%;height:100%;transform:rotate(-90deg)}
-.ios-ring-back{fill:none;stroke:#dfece9;stroke-width:6}
-.ios-ring-progress{fill:none;stroke:var(--ios-tint);stroke-width:6;stroke-linecap:round;stroke-dasharray:270.18;stroke-dashoffset:270.18;transition:stroke-dashoffset .55s linear}
-.ios-timer-readout{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#255b59;font-size:17px;letter-spacing:-.4px;font-weight:830;font-variant-numeric:tabular-nums;white-space:nowrap}
-.ios-preview-info{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0;flex:1}
-.ios-preview-kicker{color:#7e9d9a;font-weight:780;font-size:9px;letter-spacing:1px}
-.ios-preview-info strong{color:#1a4049;font-size:14px;line-height:1.35;font-weight:800}
-.ios-preview-info small{color:#79969d;font-size:10px;line-height:1.4}
-.ios-preview-tag{color:#936f46;background:#fff0d9;border-radius:99px;padding:4px 9px;font-size:9px;font-weight:840;letter-spacing:.7px;margin-top:5px}
 .ios-action-row{display:grid;grid-template-columns:1.35fr 1fr;gap:9px;margin-top:17px}
 .ios-action-main,.ios-action-secondary{min-height:47px;border-radius:13px;padding:10px 12px;border:0;font-size:12px;font-weight:780}
 .ios-action-main{background:#16766e;color:#fff}
 .ios-action-main:hover:not(:disabled){background:#105d56}
 .ios-action-secondary{background:#fff;color:#617a8c;border:1px solid #dfe7ee}
 .ios-action-main:disabled,.ios-action-secondary:disabled{opacity:.44;background:#edf1f4;color:#7b8fa1;border:1px solid #e2e8ee}
-#power-preview-card #power-preview-status{border:0;background:transparent;padding:6px 2px 0;margin:5px 0 0;color:#79949e;font-size:10px;line-height:1.6}
-#power-preview-card .ios-profile-trigger{min-height:57px}
 .ios-profile-trigger{gap:12px;min-height:58px;padding:13px 15px;font-weight:750;font-size:13px}
 .ios-profile-trigger>span:nth-child(2){flex:1}
 .ios-profile-dot{width:10px;height:10px;flex-shrink:0;border-radius:50%;background:var(--ios-tint);box-shadow:0 0 0 5px #e8f6f2}
@@ -110,8 +97,6 @@
  .ios-confirm-dialog{width:min(93vw,395px)}
 }
 @media(max-width:390px){
- .ios-preview-meter{gap:9px;padding:14px 10px}
- .ios-ring-wrap{width:98px;height:98px}
  .ios-duration-text strong{font-size:23px}
  .ios-preset-list{gap:4px}
  .ios-preset{font-size:10px}
@@ -119,11 +104,4 @@
 @media(prefers-reduced-motion:reduce){
  .ios-ring-progress{transition:none}
  .ios-confirm-cancel:active,.ios-confirm-submit:active,.ios-action-main:active:not(:disabled){transform:none}
-}
-
-/* The elegant timer meter carries the visible state; keep the API receipt
-   accessible to assistive technology without repeating raw server metadata. */
-#power-preview-card #power-preview-status{
-  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
-  overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0
 }

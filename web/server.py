@@ -80,7 +80,7 @@ def status():
             except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired):
                 pass
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "1.0.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "1.1.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -326,7 +326,7 @@ def sanitized_real_power(value):
     unavailable={"eligible":False,"atlas_owner_paused":False,"codex_owner_paused_count":0,
                  "active_jobs":None,"cpuwm_verified":False,"processes_verified":False,
                  "blockers":["Workstation readiness is not verified."],
-                 "warnings":["Save all desktop work before any power action."]}
+                 "warnings":["Unsaved work may be permanently lost. Saving is optional; explicit acceptance is required."]}
     if not isinstance(value,dict):
         return unavailable
     bools=("eligible","atlas_owner_paused","cpuwm_verified","processes_verified")
@@ -364,10 +364,23 @@ def live_power_ready(safety=None):
 
 
 def live_power_response():
+    # One sanitized signed snapshot drives both the operational card and its
+    # expandable inspection. Presentation never grants power permissions.
     safety=power_safety()
+    valid_for=0.0
+    try:
+        stamp=datetime.fromisoformat(safety["checked_at"])
+        age=time.time()-stamp.timestamp()
+        if safety.get("status")=="fresh" and stamp.tzinfo is not None and -5<=age<=15:
+            valid_for=max(0.0,min(15.0,15.0-max(0.0,age)))
+    except (KeyError,TypeError,ValueError,OverflowError):
+        pass
     return {"schedule":REAL_POWER.status(),"real_power":safety.get("real_power"),
             "ready_to_arm":live_power_ready(safety),
             "safety_checked_at":safety.get("checked_at"),
+            "safety_valid_for_seconds":round(valid_for,3),
+            "inspection":{key:safety.get(key) for key in
+                          ("status","atlas_state","atlas_control","cpuwm","desktop_work")},
             "warning":"Unsaved files are NOT saved automatically; explicit confirmation accepts possible permanent loss."}
 
 
@@ -438,7 +451,7 @@ def preview_response(result):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/1.0"
+    server_version = "UbuntuControl/1.1"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -518,7 +531,7 @@ class Handler(BaseHTTPRequestHandler):
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "1.0.0", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "1.1.0", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -615,6 +628,10 @@ class Handler(BaseHTTPRequestHandler):
                 },
             })
         if path == "/api/power/live/arm":
+            # Old cached PWAs do not send generation-bound cancellation.
+            # Refuse new timers until they load the coordinated v2 UI/API.
+            if self.headers.get("X-UC-Power-Protocol") != "2":
+                return self._json({"error":"Update Ubuntu Control before scheduling power; this client cannot safely cancel versioned timers."},409)
             if not live_power_ready():
                 return self._json({"error":"Atlas, CPUWM or active work is not confirmed safe for power."},409)
             try:
@@ -623,7 +640,7 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError,TypeError):
                 return self._json({"error":"Invalid power confirmation or delay"},400)
             except FileExistsError:
-                return self._json({"error":"Cancel the current real timer first"},409)
+                return self._json({"error":"An armed or dispatched power request is unresolved; refresh its status before another request"},409)
             except (OSError,sqlite3.Error):
                 return self._json({"error":"Real power timer unavailable"},503)
         if path == "/api/power/live/cancel":
@@ -633,7 +650,7 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 return self._json({"error":"Invalid cancellation"},400)
             except FileExistsError:
-                return self._json({"error":"Power command already sent and cannot be canceled"},409)
+                return self._json({"error":"Timer changed or power was already dispatched; refresh to verify before canceling"},409)
             except (OSError,sqlite3.Error):
                 return self._json({"error":"Real power timer unavailable"},503)
         if path in {"/api/power/preview", "/api/power/cancel"}:
@@ -729,7 +746,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v1.0 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v1.1 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 

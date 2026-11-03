@@ -83,3 +83,15 @@ The read-only power safety and cancelable timer preview are deployed to the priv
 - [x] Deployed fixed root-owned power helper and private Pi API; verified read-only root service, signed readiness and iPhone controls without performing an actual power cycle.
 - [ ] Prove Wake-on-LAN with an intentional physical power-cycle; packet support alone does not establish firmware wake from S5.
 - [ ] Implement a separate Applications, Files and Terminals area for optional saves and graceful closing.
+
+
+## Power consolidation and independent audit (v1.1)
+
+- [x] Merge real Ubuntu Power controls and inspection into a single iPhone card.
+- [x] Remove the separate simulation UI, preview polling and preview-only picker dependencies.
+- [x] Derive readiness and expandable diagnostics from the same signed snapshot and freshness budget.
+- [x] Retain pending-timer uncertainty after lost network responses; keep cancellation recovery.
+- [x] Reject replacement of unresolved sent power; bind cancellation to the observed schedule ID.
+- [x] Restore the actual operation/delay of an armed timer after reload.
+- [x] Independent Codex xhigh source audit and synthetic browser/backend regressions.
+- [ ] Verify on a physical iPhone Safari and perform a user-initiated power cycle when appropriate.

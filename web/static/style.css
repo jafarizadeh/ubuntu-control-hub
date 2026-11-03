@@ -197,13 +197,6 @@ select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:1
 .command-feedback.success{background:#e8f7ee;color:#267c5b;border-color:#d3eadd}
 
 /* Power preflight and non-executing timer preview */
-#power-preview-card .field-label{margin:13px 0 6px}
-#power-preview-card #power-safety-status{font-size:12px;font-weight:720;color:#9b4d52;margin:12px 0 7px}
-#power-preview-card #power-safety-details{margin:0 0 18px;padding-left:20px;color:#748596;font-size:11px;line-height:1.7}
-#power-preview-card #power-safety-details li{margin:4px 0;overflow-wrap:anywhere}
-#power-preview-card #power-preview-delay{display:block;width:100%;border:1px solid var(--line);padding:11px 12px;border-radius:10px;background:var(--surface);color:var(--ink);min-height:43px}
-#power-preview-card #power-preview-status{font-size:11px;color:var(--primary-dark);background:var(--surface-alt);border:1px solid var(--line);border-radius:11px;padding:12px;line-height:1.6;margin:12px 0 0;overflow-wrap:anywhere}
-#power-preview-card .inline-actions{margin-top:16px}
 /* Sanitized user-supplied SVG assets and read-only power readiness */
 .ubuntu-symbol img{height:35px;width:35px;object-fit:contain}
 .power-symbol img{height:29px;width:29px;object-fit:contain}
@@ -216,7 +209,7 @@ select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:1
 @media(max-width:740px){
   html{scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom))}
   .layout{padding-bottom:calc(155px + env(safe-area-inset-bottom))}
-  #power-preview-card button,#power-preview-card input,#power-preview-card select{
+  #real-power-card button,#real-power-card input,#real-power-card select{
     scroll-margin-bottom:calc(112px + env(safe-area-inset-bottom))
   }
 }

@@ -117,7 +117,7 @@ class PowerScheduleTests(unittest.TestCase):
         self.assertTrue(state["can_cancel"])
         new=power_schedule.PowerSchedule(self.path)
         self.assertEqual(new.status()["state"],"armed")
-        self.assertEqual(new.cancel({})["state"],"canceled")
+        self.assertEqual(new.cancel({"schedule_id":new.status()["schedule_id"]})["state"],"canceled")
         with mock.patch.object(new,"_connect",wraps=new._connect):
             dispatch=mock.Mock()
             self.assertIsNone(new.dispatch_due(True,dispatch))
@@ -150,7 +150,7 @@ class PowerScheduleTests(unittest.TestCase):
         self.assertEqual(payload["action"],"power.shutdown")
         self.assertIs(payload["ack_unsaved_loss"],True)
         with self.assertRaises(FileExistsError):
-            self.timer.cancel({})
+            self.timer.cancel({"schedule_id":self.timer.status()["schedule_id"]})
 
     def test_due_without_fresh_safety_fails_closed(self):
         created=self.timer.arm(self.arm)

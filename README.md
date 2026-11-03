@@ -2,7 +2,7 @@
 
 A private English-language, light-themed, left-to-right PWA for remotely managing Ubuntu Desktop and LG webOS TV through an always-on Raspberry Pi.
 
-**MVP status (v1.0 UI):** The Ubuntu-first PWA remains privately
+**MVP status (v1.1 UI):** The Ubuntu-first PWA remains privately
 available through Tailscale HTTPS on the Raspberry Pi. It displays live signed
 Ubuntu metrics, iOS-style CPU Details, LG webOS power controls and Wake-on-LAN.
 A separate owner-authenticated real-power workflow offers Shutdown, Restart and
@@ -12,8 +12,9 @@ closing files are NOT required; the user must consciously accept the risk.
 Atlas and all three physical Codex accounts must have explicit recorded owner
 stops, no active attempts, and CPUWM must be verified idle. A root-owned helper
 rechecks those gates immediately before normal systemd poweroff/reboot; there
-is no force flag, shell command, job kill or implicit Atlas stop. Existing
-preview/simulation and CPU/GPU controls remain separate. Real firmware WOL
+is no force flag, shell command, job kill or implicit Atlas stop. One real-power card now includes expandable Safety details from the same signed snapshot.
+The old simulation controls are no longer shown; harmless backend preview APIs
+remain separate for compatibility. CPU/GPU controls are unchanged. Real firmware WOL
 from power-off has not yet been physically verified. See
 [Power Operations](docs/POWER_OPERATIONS.md) for precise controls and limits.
 

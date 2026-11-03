@@ -298,14 +298,11 @@ function renderPowerUnavailable() {
 
 function renderDevicePower(desktop, tv, ubuntuFresh) {
   if (ubuntuFresh) {
-    const realReady=desktop.metrics?.power_safety?.real_power?.eligible === true;
     setPowerCard("desktop", {
       state: "on", badge: "On", detail: "Online · verified Ubuntu telemetry",
-      label: realReady ? "Shutdown / restart options" : "View power safety",
+      label: "Power controls & safety",
       action: "open-power-controls",
-      note: realReady
-        ? "Open owner-confirmed real shutdown or restart. Work must be saved before arming."
-        : "Power is blocked until Atlas and other work are safe. View the reasons.",
+      note: "Open current power checks and owner-confirmed shutdown or restart. Saving is optional; data-loss acceptance is required.",
     });
   } else if (desktop.ping_reachable) {
     setPowerCard("desktop", {
@@ -412,14 +409,13 @@ async function refreshStatus(manual = false) {
   try {
     renderStatus(await api("/api/status"));
     if (app.tab === "control") {
-      await refreshPowerPreview();
       await window.UbuntuRealPower.refresh();
     }
     syncControls();
     if (manual) toast("Ubuntu status refreshed.");
   } catch {
     app.lastStatus = null;
-    clearPowerPreview();
+    window.UbuntuRealPower.invalidate("Private hub connection unavailable");
     paintWithoutUbuntu();
     setConnectionState("hub-offline");
     setTag("desktop-state", "Not connected", false);
@@ -639,7 +635,6 @@ async function init() {
   el("cpu-back-button").addEventListener("click", () => switchTab("dashboard"));
   initCustomization();
   initCommandControls();
-  initPowerPreview();
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
   });
@@ -713,7 +708,6 @@ async function refreshControlAccess() {
     app.canControl = false;
   }
   syncControls();
-  await refreshPowerPreview();
   await window.UbuntuRealPower.refresh();
 }
 
@@ -821,145 +815,3 @@ function initCommandControls() {
 
 
 document.addEventListener("DOMContentLoaded", init);
-
-
-let previewBusy = false;
-let previewState = null;
-
-function syncPreviewControls() {
-  el("power-preview-create").disabled = !app.canControl || previewBusy || previewState === "draft";
-  el("power-preview-cancel").disabled = !app.canControl || previewBusy || previewState !== "draft";
-}
-
-function clearPowerPreview() {
-  previewState = null;
-  put("power-safety-status", "Safety data unavailable — power actions blocked");
-  put("guard-atlas", "Unknown");
-  put("guard-atlas-dispatch", "Unknown");
-  put("guard-atlas-attempts", "Unknown");
-  put("guard-codex-stop", "Not verified");
-  put("guard-stop-acks", "—");
-  put("guard-stop-barrier", "Not verified");
-  put("guard-cpuwm", "Unknown");
-  put("guard-desktop", "Unverified");
-  el("power-safety-details").replaceChildren();
-  put("power-safety-count", "0");
-  el("power-safety-more").open = false;
-  put("power-preview-status", "Preview unavailable — refresh to check server state");
-  window.UbuntuIOS.clearPreview();
-  syncPreviewControls();
-}
-
-function paintPowerPreview(data) {
-  if (data.preview_only !== true || data.will_execute !== false) throw new Error("Invalid preview response");
-  previewState = data.state;
-  const safety = data.safety || {};
-  const cpuwm = safety.cpuwm || {};
-  const desktopWork = safety.desktop_work || {};
-  const atlasControl = safety.atlas_control || {};
-  const stop = atlasControl.codex_stop || {};
-  put("guard-atlas", safety.atlas_state === "active" ? "Active" :
-    safety.atlas_state === "inactive" ? "Inactive" : "Unknown");
-  const atlasLabels = {
-    running: "RUN · executing",
-    armed_idle: "RUN · can dispatch",
-    unverified_stop: "STOP · origin unknown",
-    owner_stop_draining: "Owner STOP · draining",
-    owner_stop_no_active_attempts: "Owner STOP · no active attempts",
-    unavailable: "Unknown",
-  };
-  const verifiedStop = atlasControl.codex_user_stop_verified === true
-    && atlasControl.atlas_power_gate_clear === true && stop.status === "verified";
-  put("guard-atlas-dispatch", verifiedStop && atlasControl.scheduler_mode === "RUN"
-    ? "RUN · Codex dispatch frozen"
-    : (atlasLabels[atlasControl.status] || "Unknown"));
-  put("guard-atlas-attempts", Number.isInteger(atlasControl.inflight_attempts)
-    ? fmt(atlasControl.inflight_attempts, 0) + " active" : "Unknown");
-  const stopLabels = {
-    unsupported: "Awaiting Atlas support",
-    not_requested: "Not requested",
-    draining: "Waiting for workers",
-    stale: "Expired · recheck",
-    resumed: "Codex resumed",
-    invalid: "Invalid proof",
-    unavailable: "Unavailable",
-    verified: "Verified owner stop",
-  };
-  put("guard-codex-stop", verifiedStop
-    ? "Verified owner stop" : (stopLabels[stop.status] || "Not verified"));
-  put("guard-stop-acks", Number.isInteger(stop.expected_workers)
-    ? (Number.isInteger(stop.acknowledged_workers) ? stop.acknowledged_workers : 0)
-      + " / " + stop.expected_workers + " workers"
-    : "—");
-  put("guard-stop-barrier", stop.dispatch_frozen === true
-    ? "Owner stop barrier active" : "Not verified");
-  put("guard-cpuwm", cpuwm.status === "fresh" && Number.isInteger(cpuwm.managed_scopes)
-    ? fmt(cpuwm.managed_scopes, 0) + " extra" : "Unknown");
-  put("guard-desktop", desktopWork.status === "unverifiable" ?
-    (desktopWork.app_categories?.length
-      ? "Unverified · " + desktopWork.app_categories.join(", ") : "Unverified") : "Unknown");
-  const realPower=safety.real_power || {};
-  const canProceedWithWarning=realPower.eligible === true;
-  el("power-safety-status").classList.toggle("is-ready",canProceedWithWarning);
-  put("power-safety-status", canProceedWithWarning
-    ? "Real power safeguards satisfied · unsaved work can be lost only after explicit user acceptance. This preview never executes."
-    : "Real power blocked by the Atlas/workload safeguards · this preview never executes.");
-  const list = el("power-safety-details");
-  list.replaceChildren();
-  // The old conservative read-only list treated *unverifiable saved files*
-  // as a blocker. Real power has its own stricter Atlas/job gate, so avoid
-  // showing a contradictory unsaved-file hard block after consent is allowed.
-  const details = canProceedWithWarning
-    ? [...(realPower.warnings || [])]
-    : [...(realPower.blockers || []),...(realPower.warnings || []),
-       ...(safety.blocked_reasons || []).filter(item=>
-         !String(item).includes("Unsaved desktop work"))];
-  put("power-safety-count", String(details.length));
-  for (const text of details) {
-    const item = document.createElement("li");
-    item.textContent = text;
-    list.append(item);
-  }
-  put("power-preview-status", "Simulation: " + data.state + (data.action ? " · " + data.action : "")
-    + " · " + data.remaining_seconds + " seconds remaining (server reading at "
-    + new Date(data.server_time * 1000).toLocaleTimeString("en-GB") + ")");
-  window.UbuntuIOS.renderPreview(data);
-  syncPreviewControls();
-}
-
-async function refreshPowerPreview() {
-  if (previewBusy) return;
-  if (!app.canControl) { clearPowerPreview(); return; }
-  try { paintPowerPreview(await api("/api/power/preview")); }
-  catch { clearPowerPreview(); }
-}
-
-async function changePowerPreview(cancel) {
-  if (previewBusy || !app.canControl) return;
-  const value = el("power-preview-delay").value;
-  if (!cancel && (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 240)) {
-    toast("Choose an integer delay from 1 to 240 minutes.", true);
-    return;
-  }
-  previewBusy = true;
-  syncPreviewControls();
-  try {
-    if (!app.session) app.session = await api("/api/session");
-    paintPowerPreview(await api(cancel ? "/api/power/cancel" : "/api/power/preview", {
-      method: "POST",
-      headers: {"Content-Type": "application/json", "X-UC-CSRF": app.session.csrf},
-      body: JSON.stringify(cancel ? {} : {action: el("power-preview-action").value, delay_minutes: Number(value)}),
-    }));
-  } catch (error) {
-    clearPowerPreview();
-    toast(error.message, true);
-  } finally {
-    previewBusy = false;
-    await refreshPowerPreview();
-  }
-}
-
-function initPowerPreview() {
-  el("power-preview-create").addEventListener("click", () => changePowerPreview(false));
-  el("power-preview-cancel").addEventListener("click", () => changePowerPreview(true));
-}
