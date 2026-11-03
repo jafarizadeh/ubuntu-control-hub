@@ -5,11 +5,14 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 ## P0: baseline and access
 - [x] Raspberry Pi hub uses localhost and systemd auto-start.
 - [x] Tailscale private HTTPS Serve; no Funnel.
-- [x] English, left-to-right, light PWA with Dashboard / Control / History.
+- [x] English/LTR/light Ubuntu-first Dashboard (no Raspberry Pi metrics on home screen).
+- [x] Separate Ubuntu and LG power cards; live status and disabled actions are explicit.
+- [x] Per-browser metric visibility preferences (localStorage) and offline/stale data handling.
+- [x] Control tab for audio, network, CPUWM, app/file management, remote/GPT, and LG.
 - [x] Origin and CSRF checks on command requests.
 - [x] Separate safe Git source, sample config, CI and basic tests.
 - [ ] Review Tailnet ACL/grants for device and user access.
-- [ ] Confirm dashboard, controls and PWA installation on iPhone Safari.
+- [ ] Confirm updated dashboard and PWA installation on real iPhone Safari (mobile Chromium smoke test passed).
 - [x] Stage separate Raspberry Pi release and preserve backed-up previous systemd service.
 - [ ] Automate tested GitHub-to-Pi deployment with rollback.
 
@@ -20,6 +23,7 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] Read-only desktop telemetry CLI built, tested and running as a user service.
 - [x] Implement signed outbound HTTPS telemetry with a private Ed25519 key on Ubuntu and public verification key on Pi.
 - [x] Deploy and verify the outbound agent on Ubuntu and Raspberry Pi.
+- [x] Read-only Ubuntu audio, NetworkManager connectivity, and CPUWM current profile detected.
 - [ ] Authenticated, least-privilege, allowlisted command agent.
 - [x] Live CPU, GPU, RAM, disk, temperature, fans and uptime telemetry.
 - [ ] Advanced per-interface network telemetry.
@@ -55,4 +59,4 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 ## Approval gate
 No real system shutdown, restart, package update, fan override or disruptive job action without explicit approval, preflight checks and a rollback plan. Test dry-runs before enabling new controls.
 
-Next focus: safe Git base, Ubuntu agent and metrics, then timer and service controls, LG pairing, and automation.
+Next focus: authenticated command channel with narrowly allowed audio actions, CPUWM profile management with safeguards, shutdown protections, LG pairing, then app/terminal operations and automation.

@@ -49,13 +49,37 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn("X-UC-CSRF", src)
         self.assertIn("check_origin(", src)
 
-    def test_dynamic_device_addresses(self):
+    def test_ubuntu_only_dashboard_and_power_controls(self):
+        html = (ROOT / "web/static/index.html").read_text()
+        dashboard = html.split('id="view-dashboard"', 1)[1].split('id="view-control"', 1)[0]
+        self.assertNotIn('id="pi-temperature"', dashboard)
+        self.assertNotIn('id="pi-memory"', dashboard)
+        self.assertIn('id="hero-cpu"', dashboard)
+        self.assertIn('id="hero-memory"', dashboard)
+        self.assertIn('id="hero-gpu"', dashboard)
+        self.assertIn('id="desktop-on"', dashboard)
+        self.assertIn('id="desktop-off" disabled', dashboard)
+        self.assertIn('id="tv-on"', dashboard)
+        self.assertIn('id="tv-off" disabled', dashboard)
+        self.assertLess(dashboard.index('class="power-grid"'), dashboard.index('id="metrics-grid"'))
+        self.assertNotIn("192" + ".168.", html)
+
+    def test_metric_preferences_and_agent_freshness(self):
         html = (ROOT / "web/static/index.html").read_text()
         js = (ROOT / "web/static/app.js").read_text()
-        for key in ("pi-ethernet-ip", "desktop-ip", "tv-ip"):
-            self.assertIn('id="' + key + '"', html)
-            self.assertIn('text("' + key + '"', js)
-        self.assertNotIn("192" + ".168.", html)
+        self.assertIn('id="metric-options"', html)
+        self.assertIn('id="customize-btn"', html)
+        self.assertIn('window.localStorage', js)
+        self.assertIn('desktop.last_agent_report_unix', js)
+        self.assertIn('desktop.control_agent === "online"', js)
+        self.assertIn('paintWithoutUbuntu()', js)
+
+    def test_control_panel_is_honest_about_unsupported_actions(self):
+        html = (ROOT / "web/static/index.html").read_text()
+        for button in ("desktop-off", "volume-slider", "mute-toggle", "apply-profile"):
+            self.assertIn('id="' + button + '"', html)
+        self.assertIn("Manage GPT remote access", html)
+        self.assertIn("CPU & GPU Workload Manager", html)
 
 
 if __name__ == "__main__":

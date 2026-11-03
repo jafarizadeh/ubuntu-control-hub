@@ -164,6 +164,84 @@ def os_name() -> str:
     return "Linux"
 
 
+def audio_status() -> dict:
+    """Observe the default PipeWire sink; never change it."""
+    executable = shutil.which("wpctl")
+    if not executable:
+        return {"available": False}
+    try:
+        result = subprocess.run(
+            [executable, "get-volume", "@DEFAULT_AUDIO_SINK@"],
+            capture_output=True, text=True, timeout=3, check=False,
+        )
+        if result.returncode:
+            return {"available": False}
+        match = re.search(r"Volume:\s*([0-9]+(?:\.[0-9]+)?)", result.stdout)
+        if not match:
+            return {"available": False}
+        return {
+            "available": True,
+            "volume_percent": min(100, max(0, round(float(match.group(1)) * 100))),
+            "muted": "[MUTED]" in result.stdout,
+        }
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return {"available": False}
+
+
+def network_status() -> dict:
+    """Observe NetworkManager connections without changing networking."""
+    executable = shutil.which("nmcli")
+    if not executable:
+        return {"available": False, "connections": []}
+    try:
+        result = subprocess.run(
+            [executable, "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device", "status"],
+            capture_output=True, text=True, timeout=4, check=False,
+        )
+        if result.returncode:
+            return {"available": False, "connections": []}
+        items = []
+        for row in result.stdout.splitlines():
+            parts = row.split(":", 3)
+            if len(parts) != 4:
+                continue
+            device, kind, state, connection = parts
+            if kind not in {"ethernet", "wifi"} or state != "connected":
+                continue
+            items.append({
+                "interface": device[:40],
+                "type": kind,
+                "connection": connection[:90],
+            })
+        return {"available": True, "connected": bool(items), "connections": items[:8]}
+    except (OSError, subprocess.TimeoutExpired):
+        return {"available": False, "connections": []}
+
+
+def workload_manager_status() -> dict:
+    """Read only the active CPUWM profile, never modify manager state."""
+    base = Path.home() / "cpu-workload-manager"
+    executable = base / "cpuwm.py"
+    if not executable.is_file():
+        return {"available": False}
+    try:
+        settings = json.loads((base / "config.json").read_text(encoding="utf-8"))
+        profile = settings.get("profile", "balanced")
+        if profile not in {"quiet", "balanced", "performance"}:
+            return {"available": False}
+        return {"available": True, "profile": profile}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {"available": False}
+
+
+def cpu_model() -> str | None:
+    details = read_text(Path("/proc/cpuinfo")) or ""
+    for line in details.splitlines():
+        if line.startswith("model name"):
+            return line.split(":", 1)[1].strip()[:100]
+    return None
+
+
 def collect_status() -> dict:
     disk = shutil.disk_usage("/")
     try:
@@ -178,6 +256,7 @@ def collect_status() -> dict:
         "uptime_s": uptime,
         "cpu": {
             "logical_cores": os.cpu_count(),
+            "model": cpu_model(),
             "usage_percent": cpu_usage(),
             "temperature_c": cpu_temperature(),
         },
@@ -189,6 +268,9 @@ def collect_status() -> dict:
         },
         "fans": fan_speeds(),
         "gpus": gpu_status(),
+        "audio": audio_status(),
+        "network": network_status(),
+        "workload_manager": workload_manager_status(),
     }
 
 

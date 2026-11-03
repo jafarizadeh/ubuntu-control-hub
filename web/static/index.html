@@ -2,136 +2,196 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f6f8fb">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f9fc">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Ubuntu Control">
-  <meta name="description" content="Securely manage Ubuntu, Raspberry Pi, and LG TV over a private network">
+  <meta name="description" content="Ubuntu-first remote status and controls over a private Tailscale connection">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon-180.png">
   <link rel="stylesheet" href="/style.css">
-  <title>Ubuntu Control</title>
   <script src="/app.js" defer></script>
+  <title>Ubuntu Control</title>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-inner">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">
-          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="4"/><path d="M8 9.5l2.5 2.5L8 14.5M13 15h3"/></svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3.5" width="18" height="17" rx="4"/><path d="M8 9.5l2.5 2.5L8 14.5M13 15h3"/>
+          </svg>
         </div>
-        <div><strong class="brand-name">Ubuntu Control</strong><div class="brand-sub">Private device control hub</div></div>
+        <div><strong class="brand-name">Ubuntu Control</strong><div class="brand-sub">Workstation manager</div></div>
       </div>
-      <div class="header-meta">
-        <span class="connection" id="hub-state"><span class="dot"></span><span id="hub-label">Checking…</span></span>
-        <button class="icon-button" id="refresh-btn" title="Refresh" aria-label="Refresh status">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.5 6"/><path d="M20 4v7h-7"/></svg>
+      <div class="topbar-actions">
+        <span class="connection" id="hub-state" role="status"><span class="dot"></span><span id="hub-label">Connecting</span></span>
+        <button class="icon-button" type="button" id="refresh-btn" title="Refresh" aria-label="Refresh status">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.5 6"/><path d="M20 4v7h-7"/></svg>
         </button>
       </div>
-    </header>
-
-    <div class="app-layout">
-      <nav class="nav" aria-label="App navigation">
-        <div class="nav-label">WORKSPACE</div>
-        <button class="nav-item selected" type="button" data-tab="dashboard"><span class="nav-ico">◫</span> Dashboard</button>
-        <button class="nav-item" type="button" data-tab="control"><span class="nav-ico">⏻</span> Control</button>
-        <button class="nav-item" type="button" data-tab="history"><span class="nav-ico">◷</span> History</button>
-        <div class="sidebar-bottom">
-          <div class="side-note">Private access via Tailscale</div>
-          <div class="side-version">Hub v0.1</div>
-        </div>
-      </nav>
-
-      <main>
-        <section class="view" id="view-dashboard" aria-label="Dashboard">
-          <div class="heading">
-            <div><div class="eyebrow">CONTROL CENTER</div><h1>System Overview</h1><p>Raspberry Pi, Ubuntu Desktop, and LG TV at a glance</p></div>
-            <div id="updated-at" class="updated-at">—</div>
-          </div>
-
-          <div class="hero panel">
-            <div class="hero-top">
-              <div class="device-emblem pi-emblem">RP</div>
-              <div class="hero-title"><div class="hero-kicker">HUB · RASPBERRY PI 5</div><h2>Control Hub</h2><p id="pi-sub">Loading system information…</p></div>
-              <span class="state-tag online" id="pi-state">Online</span>
-            </div>
-            <div class="hero-stats">
-              <div class="metric"><span class="metric-label">CPU Temperature</span><strong id="pi-temperature">—</strong><span class="metric-unit">°C</span></div>
-              <div class="metric"><span class="metric-label">Available RAM</span><strong id="pi-memory">—</strong><span class="metric-unit">MiB</span></div>
-              <div class="metric"><span class="metric-label">Storage</span><strong id="pi-disk">—</strong><span class="metric-unit">GiB free</span></div>
-              <div class="metric"><span class="metric-label">Uptime</span><strong id="pi-uptime">—</strong><span class="metric-unit">Since last boot</span></div>
-            </div>
-            <div class="hero-bottom"><span><span class="mini-dot"></span> Ethernet: <b dir="ltr" id="pi-ethernet-ip">—</b></span><span>Tailscale: <b id="ts-state">—</b></span></div>
-          </div>
-
-          <div class="section-heading"><h2>Devices</h2><span>All your devices in one place</span></div>
-          <div class="device-grid">
-            <article class="device-card panel">
-              <div class="device-head"><div class="device-symbol desktop-symbol"><svg width="27" height="27" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg></div><span class="state-tag" id="desktop-state">Checking…</span></div>
-              <h3>Ubuntu Desktop</h3><p>Workstation · Ethernet</p><div class="meta-line"><span>IP</span><strong dir="ltr" id="desktop-ip">—</strong></div>
-              <div class="agent-state" id="desktop-agent-state">Desktop agent not configured</div>
-              <div class="desktop-telemetry" id="desktop-telemetry" hidden>
-                <div><span>CPU</span><strong id="desktop-cpu">—</strong></div>
-                <div><span>Temperature</span><strong id="desktop-temperature">—</strong></div>
-                <div><span>Available RAM</span><strong id="desktop-memory">—</strong></div>
-                <div><span>Free disk</span><strong id="desktop-disk">—</strong></div>
-                <div><span>GPU</span><strong id="desktop-gpu">—</strong></div>
-                <div><span>Fans</span><strong id="desktop-fans">—</strong></div>
-              </div>
-              <div class="device-footer"><button type="button" class="btn btn-primary" data-action="wake-desktop">⏻ <span>Wake</span></button><span class="hint">Wake-on-LAN</span></div>
-            </article>
-            <article class="device-card panel">
-              <div class="device-head"><div class="device-symbol tv-symbol"><svg width="27" height="27" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.7" stroke-linecap="round"><rect x="2.5" y="4.5" width="19" height="14" rx="2.5"/><path d="M8 21h8"/></svg></div><span class="state-tag" id="tv-state">Checking…</span></div>
-              <h3>LG OLED C1</h3><p id="tv-model">webOS · Wi-Fi</p><div class="meta-line"><span>IP</span><strong dir="ltr" id="tv-ip">—</strong></div>
-              <div class="device-footer"><button type="button" class="btn btn-primary" data-action="wake-tv">⏻ <span>Wake</span></button><span class="hint" id="tv-pairing">Checking…</span></div>
-            </article>
-          </div>
-          <div class="footnote">Reachable means the device responds over the network; it does not necessarily mean the TV screen is on.</div>
-        </section>
-
-        <section class="view" id="view-control" hidden aria-label="Control">
-          <div class="heading"><div><div class="eyebrow">REMOTE CONTROL</div><h1>Device Control</h1><p>Approved commands only, with no public internet exposure.</p></div></div>
-          <div class="control-grid">
-            <article class="panel control-card">
-              <div class="control-head"><span class="control-icon">⏻</span><div><h2>Ubuntu Desktop</h2><p>Wake the workstation over Ethernet</p></div></div>
-              <button type="button" class="btn btn-primary btn-wide" data-action="wake-desktop">Send wake command</button>
-              <div class="control-tip">A Wake-on-LAN packet will be sent. Actual power-on also depends on BIOS settings.</div>
-              <div class="coming-soon">Safe shutdown, restart, and scheduling will be available after the desktop agent is connected.</div>
-            </article>
-            <article class="panel control-card">
-              <div class="control-head"><span class="control-icon">▣</span><div><h2>LG webOS</h2><p>Control via Wi-Fi using the TV's webOS API</p></div></div>
-              <button type="button" class="btn btn-primary btn-wide" data-action="wake-tv">Send wake command</button>
-              <div class="control-tip" id="tv-controls-message">Volume and standby controls become available after pairing.</div>
-              <button type="button" class="btn btn-outline btn-wide" data-action="pair-tv" id="pair-tv-btn">Pair LG TV with Raspberry Pi</button>
-              <div class="remote-controls" id="tv-remote-controls" hidden>
-                <div class="remote-label">Volume Control</div>
-                <div class="remote-row">
-                  <button type="button" class="btn btn-outline" data-action="tv-volume-down">−</button>
-                  <button type="button" class="btn btn-outline" data-action="tv-mute">Mute</button>
-                  <button type="button" class="btn btn-outline" data-action="tv-unmute">Unmute</button>
-                  <button type="button" class="btn btn-outline" data-action="tv-volume-up">+</button>
-                </div>
-                <button type="button" class="btn btn-danger btn-wide" data-action="tv-power-off">Put TV in standby</button>
-              </div>
-            </article>
-          </div>
-          <div class="security-info"><span>⌑</span><div><strong>Private Access</strong><p>The hub listens only on the Raspberry Pi's localhost interface. Phone access is available privately through Tailscale Serve.</p></div></div>
-        </section>
-
-        <section class="view" id="view-history" hidden aria-label="History">
-          <div class="heading"><div><div class="eyebrow">ACTIVITY LOG</div><h1>Command History</h1><p>Actions recorded locally since Ubuntu Control was enabled.</p></div></div>
-          <div class="panel events-panel"><div class="events-heading"><strong>Recent Events</strong><button class="text-button" type="button" id="reload-history">Refresh</button></div><div id="events-list" class="events-list"><p class="empty">No commands have been sent from the app yet.</p></div></div>
-        </section>
-      </main>
     </div>
-    <nav class="bottom-nav" aria-label="Navigation">
-      <button class="bottom-item selected" type="button" data-tab="dashboard"><span>◫</span>Dashboard</button>
-      <button class="bottom-item" type="button" data-tab="control"><span>⏻</span>Control</button>
-      <button class="bottom-item" type="button" data-tab="history"><span>◷</span>History</button>
+  </header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Main navigation">
+      <div class="nav-label">WORKSPACE</div>
+      <button class="nav-item selected" type="button" data-tab="dashboard"><span aria-hidden="true">▦</span> Dashboard</button>
+      <button class="nav-item" type="button" data-tab="control"><span aria-hidden="true">⚙</span> Control</button>
+      <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
+      <div class="sidebar-bottom">
+        <span class="privacy-dot"></span> Private via Tailscale
+        <div class="side-version">Ubuntu Control v0.3</div>
+      </div>
     </nav>
+    <main id="main">
+      <section class="view" id="view-dashboard" aria-label="Ubuntu dashboard">
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">YOUR WORKSTATION</div>
+            <h1>Ubuntu Desktop</h1>
+            <p id="desktop-subtitle">Waiting for signed Ubuntu telemetry…</p>
+          </div>
+          <div class="heading-status"><span class="state-tag" id="desktop-state">Checking</span><span class="updated-at" id="updated-at">—</span></div>
+        </div>
+
+        <section class="overview-card panel" aria-label="Ubuntu system overview">
+          <div class="overview-head">
+            <div class="ubuntu-symbol" aria-hidden="true">U</div>
+            <div class="overview-id">
+              <strong id="desktop-hostname">Ubuntu</strong>
+              <span id="desktop-agent-state">Waiting for Ubuntu agent</span>
+            </div>
+            <span class="live-chip" id="data-freshness">No live data</span>
+          </div>
+          <div class="overview-stats" aria-label="Primary Ubuntu metrics">
+            <div class="overview-stat"><span>CPU load</span><strong id="hero-cpu">—</strong><small id="hero-cpu-model">Live CPU utilization</small></div>
+            <div class="overview-stat"><span>Memory used</span><strong id="hero-memory">—</strong><small id="hero-memory-detail">Live RAM usage</small></div>
+            <div class="overview-stat"><span>GPU load</span><strong id="hero-gpu">—</strong><small id="hero-gpu-detail">Graphics processor</small></div>
+          </div>
+          <div class="overview-footer">
+            <span><span class="live-dot"></span><span id="connection-summary">Awaiting Ubuntu connection</span></span>
+            <span id="uptime-summary">Uptime —</span>
+          </div>
+        </section>
+
+        <div class="section-title-row power-heading"><div><h2>Power</h2><p>Device power controls</p></div></div>
+        <div class="power-grid">
+          <article class="power-card panel">
+            <div class="power-card-head"><div class="power-symbol ubuntu-power">U</div><div><h3>Ubuntu Desktop</h3><p id="ubuntu-power-status">Checking power state…</p></div></div>
+            <div class="power-actions">
+              <button class="btn btn-primary" type="button" data-action="wake-desktop" id="desktop-on">Power on</button>
+              <button class="btn btn-outline" type="button" id="desktop-off" disabled title="Shutdown control is not connected yet">Power off</button>
+            </div>
+            <small class="power-note" id="desktop-power-note">Wake-on-LAN available. Shutdown requires the protected command channel.</small>
+          </article>
+          <article class="power-card panel">
+            <div class="power-card-head"><div class="power-symbol tv-power">▣</div><div><h3>LG Display</h3><p id="tv-power-status">Checking monitor…</p></div></div>
+            <div class="power-actions">
+              <button class="btn btn-primary" type="button" data-action="wake-tv" id="tv-on">Power on</button>
+              <button class="btn btn-outline" type="button" data-action="tv-power-off" id="tv-off" disabled>Standby</button>
+            </div>
+            <small class="power-note" id="tv-power-note">Standby becomes available after LG webOS pairing.</small>
+          </article>
+        </div>
+        <p class="power-disclaimer">Wake-on-LAN sends a wake packet; successful screen or computer power-on must be confirmed separately.</p>
+
+        <div class="section-title-row">
+          <div><h2>System metrics</h2><p>Only real Ubuntu measurements</p></div>
+          <button id="customize-btn" class="btn btn-outline btn-compact" type="button" aria-expanded="false" aria-controls="customize-panel">Customize</button>
+        </div>
+        <div class="customize-panel panel" id="customize-panel" hidden>
+          <div class="customize-heading"><strong>Choose visible metrics</strong><button class="text-button" id="reset-metrics" type="button">Restore defaults</button></div>
+          <p>Preferences are saved on this device. Measurements always come from Ubuntu.</p>
+          <div class="metrics-options" id="metric-options"></div>
+        </div>
+        <div class="metrics-grid" id="metrics-grid">
+          <article class="metric-card panel" data-metric="cpu_temp"><span>CPU temperature</span><strong id="metric-cpu-temp">—</strong><small>Processor thermal sensor</small></article>
+          <article class="metric-card panel" data-metric="gpu_temp"><span>GPU temperature</span><strong id="metric-gpu-temp">—</strong><small>Graphics thermal sensor</small></article>
+          <article class="metric-card panel" data-metric="memory"><span>Available memory</span><strong id="metric-memory">—</strong><small id="metric-memory-detail">RAM available</small></article>
+          <article class="metric-card panel" data-metric="disk"><span>Free storage</span><strong id="metric-disk">—</strong><small id="metric-disk-detail">System disk</small></article>
+          <article class="metric-card panel" data-metric="fans"><span>Cooling fans</span><strong id="metric-fans">—</strong><small id="metric-fans-detail">Fan speed</small></article>
+          <article class="metric-card panel" data-metric="uptime"><span>Uptime</span><strong id="metric-uptime">—</strong><small>Since last boot</small></article>
+          <article class="metric-card panel" data-metric="gpu_memory"><span>GPU memory</span><strong id="metric-gpu-memory">—</strong><small>Graphics memory usage</small></article>
+          <article class="metric-card panel" data-metric="network"><span>Network</span><strong id="metric-network">—</strong><small id="metric-network-detail">Connection status</small></article>
+          <article class="metric-card panel" data-metric="audio"><span>System audio</span><strong id="metric-audio">—</strong><small id="metric-audio-detail">Default output volume</small></article>
+          <article class="metric-card panel" data-metric="performance"><span>CPUWM profile</span><strong id="metric-performance">—</strong><small>CPU & GPU Workload Manager</small></article>
+        </div>
+
+      </section>
+
+      <section class="view" id="view-control" hidden aria-label="Ubuntu control panel">
+        <div class="page-heading"><div><div class="eyebrow">REMOTE MANAGEMENT</div><h1>Control Center</h1><p>Ubuntu settings and operations, with explicit capability status</p></div></div>
+        <div class="control-section-head"><h2>System controls</h2><span class="section-helper">Only connected actions can be used</span></div>
+        <div class="control-grid">
+          <article class="control-card panel">
+            <div class="control-card-header"><div class="control-icon">♫</div><div><h3>Sound</h3><p>Ubuntu audio output</p></div><span class="feature-state" id="audio-capability">Read only</span></div>
+            <div class="setting-line"><span>Output volume</span><strong id="control-volume">—</strong></div>
+            <input id="volume-slider" type="range" min="0" max="100" value="0" disabled aria-label="Ubuntu volume" title="Audio control channel is not configured">
+            <div class="inline-actions"><button class="btn btn-outline" id="mute-toggle" type="button" disabled>Mute / Unmute</button></div>
+            <p class="control-note">Current volume is live. Remote audio changes require the authenticated command channel.</p>
+          </article>
+          <article class="control-card panel">
+            <div class="control-card-header"><div class="control-icon">⌁</div><div><h3>Network</h3><p>Ethernet, Wi-Fi and connectivity</p></div><span class="feature-state" id="network-capability">Read only</span></div>
+            <div class="setting-line"><span>Connections</span><strong id="network-count">—</strong></div>
+            <div class="network-items" id="network-items"><span>No network details</span></div>
+            <button class="btn btn-outline btn-wide" type="button" disabled>Manage interfaces</button>
+            <p class="control-note">Disconnecting the active network could cut off remote access, so network changes are locked until recovery safeguards exist.</p>
+          </article>
+          <article class="control-card panel">
+            <div class="control-card-header"><div class="control-icon">◫</div><div><h3>CPU & GPU Workload Manager</h3><p>Existing performance controller</p></div><span class="feature-state" id="performance-capability">Checking</span></div>
+            <div class="setting-line"><span>Active profile</span><strong id="control-profile">—</strong></div>
+            <label class="field-label" for="profile-selector">Target profile</label>
+            <select id="profile-selector" disabled><option value="quiet">Quiet</option><option value="balanced" selected>Balanced</option><option value="performance">Performance</option></select>
+            <button class="btn btn-outline btn-wide" id="apply-profile" type="button" disabled>Apply profile</button>
+            <p class="control-note">Profiles are read from the real Workload Manager. Changing resource allocation will require a protected, confirmed command.</p>
+          </article>
+          <article class="control-card panel">
+            <div class="control-card-header"><div class="control-icon">▤</div><div><h3>Applications & files</h3><p>Running applications and open documents</p></div><span class="feature-state">Planned</span></div>
+            <button class="btn btn-outline btn-wide" type="button" disabled>View running applications</button>
+            <button class="btn btn-outline btn-wide" type="button" disabled>Close selected applications</button>
+            <p class="control-note">Closing apps will require selection and confirmation to protect unsaved work and running jobs.</p>
+          </article>
+          <article class="control-card panel">
+            <div class="control-card-header"><div class="control-icon">⌘</div><div><h3>Terminal & GPT Remote</h3><p>Authorized remote administration</p></div><span class="feature-state">Planned</span></div>
+            <button class="btn btn-outline btn-wide" type="button" disabled>Open remote terminal</button>
+            <button class="btn btn-outline btn-wide" type="button" disabled>Manage GPT remote access</button>
+            <p class="control-note">No unrestricted remote shell is exposed through the phone dashboard. Remote access must use an authenticated, audited session.</p>
+          </article>
+          <article class="control-card panel">
+            <div class="control-card-header"><div class="control-icon">▣</div><div><h3>LG webOS</h3><p>Pairing and display controls</p></div><span class="feature-state" id="tv-control-capability">Pairing needed</span></div>
+            <p class="control-note" id="tv-controls-message">LG pairing must be approved on the television.</p>
+            <button class="btn btn-outline btn-wide" data-action="pair-tv" id="pair-tv-btn" type="button">Pair LG display</button>
+            <div id="tv-remote-controls" hidden>
+              <div class="setting-line"><span>Volume</span><span>LG TV</span></div>
+              <div class="inline-actions">
+                <button class="btn btn-outline" type="button" data-action="tv-volume-down">−</button>
+                <button class="btn btn-outline" type="button" data-action="tv-mute">Mute</button>
+                <button class="btn btn-outline" type="button" data-action="tv-unmute">Unmute</button>
+                <button class="btn btn-outline" type="button" data-action="tv-volume-up">+</button>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="safety-strip"><span>ⓘ</span><div><strong>Private connection</strong><p>Raspberry Pi provides the secure Hub. The dashboard shows Ubuntu data; it does not expose a general-purpose shell or public API.</p></div></div>
+      </section>
+
+      <section class="view" id="view-history" hidden aria-label="Command history">
+        <div class="page-heading"><div><div class="eyebrow">ACTIVITY</div><h1>Command History</h1><p>Recent actions recorded by Ubuntu Control</p></div></div>
+        <div class="events-panel panel"><div class="events-heading"><strong>Recent events</strong><button class="text-button" type="button" id="reload-history">Refresh</button></div>
+          <div id="events-list"><p class="empty">No commands have been sent yet.</p></div>
+        </div>
+      </section>
+    </main>
   </div>
-  <div role="status" class="toast" id="toast" aria-live="polite"></div>
+  <nav class="bottom-nav" aria-label="Mobile navigation">
+    <button class="bottom-item selected" type="button" data-tab="dashboard"><span aria-hidden="true">▦</span>Dashboard</button>
+    <button class="bottom-item" type="button" data-tab="control"><span aria-hidden="true">⚙</span>Control</button>
+    <button class="bottom-item" type="button" data-tab="history"><span aria-hidden="true">◷</span>History</button>
+  </nav>
+  <div class="toast" role="status" id="toast" aria-live="polite"></div>
+</div>
 </body>
 </html>

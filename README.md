@@ -2,7 +2,7 @@
 
 A private English-language, light-themed, left-to-right PWA for remotely managing Ubuntu Desktop and LG webOS TV through an always-on Raspberry Pi.
 
-**MVP status:** The Raspberry Pi hub already runs and provides an HTTPS Tailnet dashboard. The initial implementation supports Pi health monitoring, network availability, Wake-on-LAN packet requests, local command history, and optional webOS controls after on-screen pairing. Ubuntu CPU/GPU/RAM/disk/temperature/fan metrics are now reported by a signed outbound agent. Shutdown/restart and timers require a future command channel.
+**MVP status (v0.3 UI):** The Raspberry Pi hub runs privately over Tailscale HTTPS. The default Dashboard is **Ubuntu-first**: live signed Ubuntu CPU/GPU/RAM/disk/temperature/fan/uptime telemetry, two power cards for Ubuntu and LG, and locally customizable metric tiles. The Control tab shows actual Ubuntu audio/network/CPUWM status and clearly marks unimplemented remote controls as disabled. Wake-on-LAN and LG webOS controls (once paired) are already connected. Ubuntu shutdown/restart, volume changes, CPUWM profile changes and desktop-terminal operations require a future authenticated command channel.
 
 ## Architecture
 
@@ -19,13 +19,13 @@ The backend is Python, and the frontend is static HTML/CSS/JavaScript with no bu
 ## Structure
 
 - web/server.py: private API, allowlisted command handlers and static file server.
-- web/static/: English LTR/light PWA, assets and service worker.
+- web/static/: English LTR/light Ubuntu-first PWA, per-browser metric selection, power cards and service worker.
 - bin/: Raspberry Pi status, Wake-on-LAN, LG pairing and Tailnet publication.
 - agent/desktop_status.py: read-only Ubuntu telemetry (no root, no daemon).
 - agent/outbound.py: outgoing HTTPS-only sender to the private Raspberry Pi hub.
 - config/devices.example.json: fictional sample addresses only.
 - deploy/: sample systemd unit.
-- docs/: roadmap, operations, security and development workflow.
+- docs/: dashboard/control specification, roadmap, operations, security and development workflow.
 - tests/: safe, non-destructive repository and desktop-agent tests.
 
 ## Local setup (Raspberry Pi OS)
