@@ -242,7 +242,7 @@ class RepositorySmokeTests(unittest.TestCase):
             self.assertIn('id="' + identifier + '"',html)
             self.assertIn('put("' + identifier + '"',js)
         self.assertIn("Atlas scheduler",html)
-        self.assertIn("Codex user stop",html)
+        self.assertIn("Advanced worker proof",html)
         self.assertIn("Worker acknowledgements",html)
         self.assertIn("Dispatch barrier",html)
         self.assertIn('id="guard-stop-acks"',html)

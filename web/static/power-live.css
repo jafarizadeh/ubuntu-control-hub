@@ -46,3 +46,7 @@
  .live-timer-countdown{font-size:15px}
  .live-clock-eyebrow{font-size:8px}
 }
+
+/* An advanced read-only report must not look like a red shutdown veto when the
+   separate, verified real-power gate is ready after informed consent. */
+#power-preview-card #power-safety-status.is-ready{color:#18735d}

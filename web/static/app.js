@@ -900,6 +900,7 @@ function paintPowerPreview(data) {
       ? "Unverified · " + desktopWork.app_categories.join(", ") : "Unverified") : "Unknown");
   const realPower=safety.real_power || {};
   const canProceedWithWarning=realPower.eligible === true;
+  el("power-safety-status").classList.toggle("is-ready",canProceedWithWarning);
   put("power-safety-status", canProceedWithWarning
     ? "Real power safeguards satisfied · unsaved work can be lost only after explicit user acceptance. This preview never executes."
     : "Real power blocked by the Atlas/workload safeguards · this preview never executes.");

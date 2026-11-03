@@ -80,6 +80,6 @@ The read-only power safety and cancelable timer preview are deployed to the priv
 
 - [x] Separate explicit acceptance of unsaved-data loss from actually saving documents; warn twice and use a cancellable timer.
 - [x] Implement at-most-once dispatch and fail-closed signed read-only safety gates in source.
-- [ ] Finish controlled live deployment of the privileged helper and real-power API, without power-cycling Ubuntu during deployment.
+- [x] Deployed fixed root-owned power helper and private Pi API; verified read-only root service, signed readiness and iPhone controls without performing an actual power cycle.
 - [ ] Prove Wake-on-LAN with an intentional physical power-cycle; packet support alone does not establish firmware wake from S5.
 - [ ] Implement a separate Applications, Files and Terminals area for optional saves and graceful closing.
