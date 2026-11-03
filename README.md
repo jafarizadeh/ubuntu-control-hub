@@ -2,15 +2,17 @@
 
 A private English-language, light-themed, left-to-right PWA for remotely managing Ubuntu Desktop and LG webOS TV through an always-on Raspberry Pi.
 
-**MVP status:** The Raspberry Pi hub already runs and provides an HTTPS Tailnet dashboard. The initial implementation supports Pi health monitoring, network availability, Wake-on-LAN packet requests, local command history, and optional webOS controls after on-screen pairing. Ubuntu shutdown/restart, desktop metrics, and timers require a future authenticated desktop agent.
+**MVP status:** The Raspberry Pi hub already runs and provides an HTTPS Tailnet dashboard. The initial implementation supports Pi health monitoring, network availability, Wake-on-LAN packet requests, local command history, and optional webOS controls after on-screen pairing. Ubuntu CPU/GPU/RAM/disk/temperature/fan metrics are now reported by a signed outbound agent. Shutdown/restart and timers require a future command channel.
 
 ## Architecture
 
     iPhone PWA  -- private Tailscale HTTPS --> Raspberry Pi Hub (localhost:8765)
                                                    |          |
                                              LAN status/WOL   LG webOS (paired)
+                                                   ^
+                                  signed outbound HTTPS telemetry
                                                    |
-                                          Ubuntu Agent (planned)
+                                        Ubuntu read-only agent
 
 The backend is Python, and the frontend is static HTML/CSS/JavaScript with no build step. No public port or Tailscale Funnel should be enabled.
 
@@ -18,8 +20,9 @@ The backend is Python, and the frontend is static HTML/CSS/JavaScript with no bu
 
 - web/server.py: private API, allowlisted command handlers and static file server.
 - web/static/: English LTR/light PWA, assets and service worker.
-- bin/: Raspberry Pi status, restricted SSH desktop client, Wake-on-LAN, LG pairing and Tailnet publication.
+- bin/: Raspberry Pi status, Wake-on-LAN, LG pairing and Tailnet publication.
 - agent/desktop_status.py: read-only Ubuntu telemetry (no root, no daemon).
+- agent/outbound.py: outgoing HTTPS-only sender to the private Raspberry Pi hub.
 - config/devices.example.json: fictional sample addresses only.
 - deploy/: sample systemd unit.
 - docs/: roadmap, operations, security and development workflow.
@@ -60,7 +63,7 @@ These checks do not send power or TV commands.
 
 ## Project policy
 
-Use feature/fix branches and pull requests. Keep user-visible UI and docs in English. Protect the Raspberry Pi service and data when deploying. The existing live installation is not yet connected to GitHub releases; see docs/OPERATIONS.md and docs/ROADMAP.md. The desktop status agent is a separate, opt-in feature; see docs/DESKTOP_AGENT.md.
+Use feature/fix branches and pull requests. Keep user-visible UI and docs in English. Protect the Raspberry Pi service and data when deploying. The active Raspberry Pi installation runs from a separate release directory and is not auto-deployed from GitHub; see docs/OPERATIONS.md and docs/ROADMAP.md. The desktop status agent uses outbound HTTPS from Ubuntu to the Raspberry Pi; see docs/OUTBOUND_AGENT.md. No inbound SSH daemon is necessary.
 
 ## Confidentiality
 

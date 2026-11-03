@@ -90,6 +90,14 @@ async function refreshStatus(manual = false) {
       text("desktop-temperature", report.cpu?.temperature_c == null ? "—" : fmt(report.cpu.temperature_c) + "°C");
       text("desktop-memory", report.memory?.available_mib == null ? "—" : fmt(report.memory.available_mib) + " MiB");
       text("desktop-disk", report.storage?.free_gib == null ? "—" : fmt(report.storage.free_gib) + " GiB");
+      const gpu = Array.isArray(report.gpus) ? report.gpus[0] : null;
+      text("desktop-gpu", gpu && gpu.usage_percent != null
+        ? fmt(gpu.usage_percent) + "%" + (gpu.temperature_c == null ? "" : " · " + fmt(gpu.temperature_c) + "°C")
+        : "Not available");
+      const fans = Array.isArray(report.fans) ? report.fans : [];
+      text("desktop-fans", fans.length
+        ? fans.slice(0, 2).map(item => fmt(item.rpm) + " RPM").join(" · ")
+        : "Not available");
     }
     setDeviceStatus("tv-state", tv.ping_reachable && tv.webos_api_reachable);
     text("tv-pairing", tv.paired ? "webOS paired" : "Pairing required");

@@ -1,0 +1,17 @@
+# User systemd unit. Replace YOUR_UBUNTU_USER with the local user.
+# Install to ~/.config/systemd/user/ubuntu-control-agent.service
+[Unit]
+Description=Ubuntu Control outbound telemetry agent (read-only)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/YOUR_UBUNTU_USER/ubuntu-control-hub/agent/outbound.py --config /home/YOUR_UBUNTU_USER/.config/ubuntu-control-agent/client.json
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

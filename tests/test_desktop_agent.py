@@ -21,7 +21,7 @@ def load_module(path: pathlib.Path, name: str):
 
 
 agent = load_module(ROOT / "agent/desktop_status.py", "agent_desktop_status")
-client = load_module(ROOT / "bin/desktop_agent_client.py", "desktop_agent_client")
+
 
 
 class TelemetryParsingTests(unittest.TestCase):
@@ -51,10 +51,6 @@ class TelemetryParsingTests(unittest.TestCase):
         self.assertIsNone(agent.temperature_c("garbage"))
         self.assertIsNone(agent.temperature_c("200000"))
 
-    def test_ssh_entry_requires_exact_original_command(self):
-        with mock.patch.object(sys, "argv", ["desktop_status.py", "--ssh"]):
-            with mock.patch.dict("os.environ", {"SSH_ORIGINAL_COMMAND": "shutdown"}, clear=False):
-                self.assertEqual(agent.main(), 2)
 
     def test_runtime_schema(self):
         with mock.patch.object(agent, "cpu_usage", return_value=17.5):
@@ -69,68 +65,6 @@ class TelemetryParsingTests(unittest.TestCase):
         json.dumps(payload)
 
 
-class SSHClientTests(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.key = pathlib.Path(self.temp.name, "id_ed25519_status")
-        self.key.write_text("placeholder for tests only")
-        self.key.chmod(0o600)
-        self.config = {
-            "ip": "192.0.2.20",
-            "agent_ssh": {
-                "enabled": True,
-                "username": "testuser",
-                "identity_file": str(self.key),
-            },
-        }
-
-    def test_disabled_returns_not_configured_without_ssh(self):
-        with mock.patch.object(client.subprocess, "run") as run:
-            self.assertEqual(client.fetch_status({"ip": "192.0.2.20"}), {"control_agent": "not_configured"})
-            run.assert_not_called()
-
-    def test_no_unsafe_username_or_ip(self):
-        with mock.patch.object(client.subprocess, "run") as run:
-            self.config["agent_ssh"]["username"] = "-oProxyCommand=bad"
-            self.assertEqual(client.fetch_status(self.config), {"control_agent": "unavailable"})
-            self.config["agent_ssh"]["username"] = "testuser"
-            self.config["ip"] = "-oProxyCommand=bad"
-            self.assertEqual(client.fetch_status(self.config), {"control_agent": "unavailable"})
-            run.assert_not_called()
-
-    def test_rejects_world_readable_key(self):
-        self.key.chmod(0o644)
-        with mock.patch.object(client.subprocess, "run") as run:
-            self.assertEqual(client.fetch_status(self.config), {"control_agent": "unavailable"})
-            run.assert_not_called()
-
-    def test_ssh_command_is_fixed_and_restricted(self):
-        payload = {
-            "schema_version": 1, "cpu": {"usage_percent": 12.5},
-            "memory": {"available_mib": 4000},
-            "storage": {"free_gib": 30},
-        }
-        completed = subprocess.CompletedProcess([], 0, json.dumps(payload), "")
-        with mock.patch.object(client.subprocess, "run", return_value=completed) as run:
-            response = client.fetch_status(self.config)
-        self.assertEqual(response["control_agent"], "online")
-        self.assertEqual(response["metrics"]["cpu"]["usage_percent"], 12.5)
-        args = run.call_args.args[0]
-        self.assertEqual(args[0], "ssh")
-        self.assertIn("BatchMode=yes", args)
-        self.assertIn("StrictHostKeyChecking=yes", args)
-        self.assertEqual(args[-1], "ubuntu-control-status-v1")
-        self.assertNotIn("shell", run.call_args.kwargs)
-
-    def test_rejects_unexpected_payload(self):
-        completed = subprocess.CompletedProcess([], 0, '{"schema_version":2}', "")
-        with mock.patch.object(client.subprocess, "run", return_value=completed):
-            self.assertEqual(client.fetch_status(self.config), {"control_agent": "unavailable"})
-
-    def test_timeout_returns_unavailable(self):
-        with mock.patch.object(client.subprocess, "run", side_effect=subprocess.TimeoutExpired("ssh", 7)):
-            self.assertEqual(client.fetch_status(self.config), {"control_agent": "unavailable"})
 
 
 if __name__ == "__main__":

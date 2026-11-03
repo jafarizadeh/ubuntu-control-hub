@@ -10,16 +10,19 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] Separate safe Git source, sample config, CI and basic tests.
 - [ ] Review Tailnet ACL/grants for device and user access.
 - [ ] Confirm dashboard, controls and PWA installation on iPhone Safari.
-- [ ] Controlled GitHub-to-Pi deployment with backup and rollback.
+- [x] Stage separate Raspberry Pi release and preserve backed-up previous systemd service.
+- [ ] Automate tested GitHub-to-Pi deployment with rollback.
 
 ## P1: Ubuntu Desktop
 - [x] LAN availability monitoring.
 - [x] Send Wake-on-LAN packet.
 - [ ] Confirm physical wake from powered-off state.
-- [x] Read-only desktop telemetry CLI built and tested locally (not deployed).
-- [ ] Configure and verify restricted SSH channel from Raspberry Pi (not yet deployed).
+- [x] Read-only desktop telemetry CLI built, tested and running as a user service.
+- [x] Implement signed outbound HTTPS telemetry with a private Ed25519 key on Ubuntu and public verification key on Pi.
+- [x] Deploy and verify the outbound agent on Ubuntu and Raspberry Pi.
 - [ ] Authenticated, least-privilege, allowlisted command agent.
-- [ ] Live CPU, GPU, RAM, disk, temperature, fans, uptime, network.
+- [x] Live CPU, GPU, RAM, disk, temperature, fans and uptime telemetry.
+- [ ] Advanced per-interface network telemetry.
 - [ ] Protected shutdown and restart with explicit confirmation.
 - [ ] Shutdown timer, remaining time display, cancellation.
 - [ ] Service controls: allowlisted systemd start/stop/restart.

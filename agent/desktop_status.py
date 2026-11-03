@@ -193,12 +193,8 @@ def collect_status() -> dict:
 
 
 def main() -> int:
-    if sys.argv[1:] == ["--ssh"]:
-        if os.environ.get("SSH_ORIGINAL_COMMAND") != "ubuntu-control-status-v1":
-            print("Unsupported SSH command", file=sys.stderr)
-            return 2
-    elif len(sys.argv) > 1:
-        print("Usage: desktop_status.py [--ssh]", file=sys.stderr)
+    if len(sys.argv) > 1:
+        print("Usage: desktop_status.py", file=sys.stderr)
         return 2
     print(json.dumps(collect_status(), ensure_ascii=False, separators=(",", ":")))
     return 0

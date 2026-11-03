@@ -12,12 +12,7 @@
     "name": "Ubuntu Desktop",
     "ip": "192.0.2.20",
     "mac": "02:00:00:00:00:20",
-    "wake_method": "ethernet",
-    "agent_ssh": {
-      "enabled": false,
-      "username": "your_ubuntu_username",
-      "identity_file": "/home/YOUR_PI_USER/.ssh/ubuntu-control-status-readonly"
-    }
+    "wake_method": "ethernet"
   },
   "tv": {
     "name": "LG webOS TV",

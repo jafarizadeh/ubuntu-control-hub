@@ -20,6 +20,8 @@ import threading
 import time
 from urllib.parse import urlsplit
 
+from agent_broker import AgentBroker
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STATIC = ROOT / "web" / "static"
 CONFIG = ROOT / "config"
@@ -27,6 +29,7 @@ EVENTS = ROOT / "data" / "history.jsonl"
 COMMAND = ROOT / ".venv" / "bin" / "bscpylgtvcommand"
 TV_DATABASE = CONFIG / ".aiopylgtv.sqlite"
 STATUS_COMMAND = ROOT / "bin" / "status.py"
+BROKER = AgentBroker(CONFIG / "desktop_agent.pub")
 WOL_COMMAND = ROOT / "bin" / "wake.py"
 DEVICE_INFO = json.loads((CONFIG / "devices.json").read_text())
 COOKIE = "uc_hub"
@@ -58,8 +61,8 @@ def status():
         )
         report = json.loads(r.stdout)
         report["tv"]["paired"] = paired()
-        report["desktop"].setdefault("control_agent", "not_configured")
-        report["hub"] = {"version": "0.1.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["desktop"].update(BROKER.desktop_state())
+        report["hub"] = {"version": "0.2.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -175,6 +178,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/session":
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
+        if path == "/api/health":
+            return self._json({"ok": True, "version": "0.2", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -203,6 +208,22 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._host_ok():
             return self._json({"error": "Host not allowed"}, 403)
+        path = urlsplit(self.path).path
+        if path == "/api/agent/report":
+            if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                return self._json({"error": "JSON content required"}, 415)
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                if not 0 < size <= 16384:
+                    return self._json({"error": "Agent payload size invalid"}, 413)
+                raw = self.rfile.read(size)
+                if not BROKER.authorized(self.headers, raw):
+                    return self._json({"error": "Unauthorized agent"}, 403)
+                if not BROKER.accept(raw):
+                    return self._json({"error": "Invalid agent report"}, 400)
+            except (ValueError, OSError):
+                return self._json({"error": "Invalid agent report"}, 400)
+            return self._json({"ok": True})
         origin = self.headers.get("Origin", "")
         if not check_origin(self.headers.get("Host", ""), origin):
             return self._json({"error": "Invalid request origin"}, 403)

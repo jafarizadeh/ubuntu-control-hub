@@ -4,6 +4,8 @@
 /config/*.db
 /config/*.key
 /config/*.pem
+/config/*.token
+/config/desktop_agent.pub
 /data/
 /logs/
 /backups/

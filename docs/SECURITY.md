@@ -17,7 +17,7 @@ The provided config/devices.example.json contains non-routable documentation add
 
 ## Commands and operations
 - Implement only explicitly allowlisted commands and parameters.
-- Start with a dedicated SSH key restricted to the read-only status command; see docs/DESKTOP_AGENT.md.
+- Authenticate read-only reports with Ed25519 signatures over private Tailscale HTTPS. The Ubuntu private key never leaves the desktop; the Pi stores only its public verification key.
 - Use a minimal dedicated agent privilege set for future Ubuntu control operations; never execute arbitrary submitted shell strings.
 - Distinguish Wake-on-LAN packet transmission from verified power-on.
 - Require confirmation for shutdown, restart, updates and other disruptions.
