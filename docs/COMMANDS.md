@@ -180,3 +180,18 @@ bypassing the manager, plus external session/save acknowledgements through an
 app-specific clean shutdown workflow. Unsaved desktop work must have explicit
 protection; never blindly force a remote shutdown. No shutdown, restart or
 scheduling activation is enabled by this iteration.
+
+
+## Atlas owner stop vs. Codex idleness (v0.8)
+
+The read-only Atlas SQLite observer distinguishes RUN with active work, RUN
+with idle agents, quota-limited workers, an explicit global owner STOP, and an
+unverified STOP. A separate Codex user-stop acknowledgement is not yet
+implemented. Atlas global owner-stop does not itself certify that every
+physical Codex worker is drained. No shutdown permission is inferred from
+empty queues, inactivity, quota exhaustion, or the Atlas service being
+inactive. The scheduler in RUN mode may start work at any moment.
+
+See docs/ATLAS_POWER_POLICY.md for the exact source, stop provenance, current
+strictly false Codex stop flag, and future verification contract. No remote
+shutdown or restart is enabled by this update.

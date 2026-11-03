@@ -78,7 +78,7 @@ def status():
             except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired):
                 pass
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "0.7.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "0.8.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -167,6 +167,62 @@ def can_control(headers):
                 and hmac.compare_digest(values[0].encode(), expected.encode()))
     except (OSError, ValueError, AttributeError, TypeError):
         return False
+
+
+def safe_atlas_control_summary(value):
+    """Bounded projection of Atlas stop provenance, never worker identities."""
+    unavailable = {
+        "status": "unavailable", "scheduler_mode": "unknown",
+        "dispatch_armed": None, "owner_stop_verified": False,
+        "codex_user_stop_verified": False, "inflight_attempts": None,
+        "running_packages": None, "ready_packages": None,
+        "atlas_power_gate_clear": False,
+    }
+    if not isinstance(value, dict):
+        return unavailable
+    allowed = {"unavailable", "running", "armed_idle", "unverified_stop",
+               "owner_stop_draining", "owner_stop_no_active_attempts"}
+    state = value.get("status")
+    mode = value.get("scheduler_mode")
+    dispatch = value.get("dispatch_armed")
+    owner_stop = value.get("owner_stop_verified")
+    # The future independent Codex stop proof has not been implemented;
+    # never accept a claim that a client made up.
+    if (state not in allowed or mode not in ("RUN", "STOP", "unknown")
+            or type(owner_stop) is not bool
+            or dispatch is not None and type(dispatch) is not bool
+            or value.get("atlas_power_gate_clear") is not False
+            or value.get("codex_user_stop_verified") is not False):
+        return unavailable
+    counts = {}
+    for field in ("inflight_attempts", "running_packages", "ready_packages"):
+        amount = value.get(field)
+        if amount is not None and (type(amount) is not int or not 0 <= amount <= 100000):
+            return unavailable
+        counts[field] = amount
+    if state == "unavailable":
+        return unavailable
+    if (state in ("running", "armed_idle") and
+            (mode != "RUN" or dispatch is not True or owner_stop)):
+        return unavailable
+    if (state in ("unverified_stop", "owner_stop_draining", "owner_stop_no_active_attempts")
+            and (mode != "STOP" or dispatch is not False)):
+        return unavailable
+    if state == "unverified_stop" and owner_stop:
+        return unavailable
+    if state in ("owner_stop_draining", "owner_stop_no_active_attempts") and not owner_stop:
+        return unavailable
+    if state == "owner_stop_no_active_attempts" and (counts["inflight_attempts"] != 0
+                                                     or counts["running_packages"] != 0):
+        return unavailable
+    if state == "owner_stop_draining" and not (counts["inflight_attempts"] or counts["running_packages"]):
+        return unavailable
+    return {
+        **unavailable, "status": state, "scheduler_mode": mode,
+        "dispatch_armed": dispatch, "owner_stop_verified": owner_stop,
+        "codex_user_stop_verified": False,
+        **counts,
+    }
 
 
 def safe_cpuwm_summary(value):
@@ -259,7 +315,8 @@ def power_safety():
     return {**{key: safety[key] for key in required},
             "status": "fresh", "safe_to_request": False,
             "cpuwm": safe_cpuwm_summary(safety.get("cpuwm")),
-            "desktop_work": safe_desktop_work(safety.get("desktop_work"))}
+            "desktop_work": safe_desktop_work(safety.get("desktop_work")),
+            "atlas_control": safe_atlas_control_summary(safety.get("atlas_control"))}
 
 
 def preview_response(result):
@@ -269,7 +326,7 @@ def preview_response(result):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/0.7"
+    server_version = "UbuntuControl/0.8"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -345,7 +402,7 @@ class Handler(BaseHTTPRequestHandler):
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "0.7.0", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "0.8.0", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -525,7 +582,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v0.7 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v0.8 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 

@@ -2,7 +2,7 @@
 
 A private English-language, light-themed, left-to-right PWA for remotely managing Ubuntu Desktop and LG webOS TV through an always-on Raspberry Pi.
 
-**MVP status (v0.7 UI):** The Raspberry Pi hub runs privately over Tailscale HTTPS. The default Dashboard is **Ubuntu-first**: live signed Ubuntu CPU/GPU/RAM/disk/temperature/fan/uptime telemetry, two single-action, stateful SVG power cards for Ubuntu and LG, and locally customizable metric tiles. The Control tab shows actual Ubuntu audio/network/CPUWM status and clearly marks unimplemented remote controls as disabled. Wake-on-LAN and LG webOS controls (when paired) are connected; on/off claims are based on Ubuntu telemetry or read-only webOS power state, never merely on ping. Volume/Mute and confirmed CPUWM profile changes are available through an opt-in, verified Tailnet-owner command channel (see docs/COMMANDS.md). Control now includes read-only Ubuntu power safety and a durable, cancelable timer preview. This is simulation only: it never shuts down or restarts Ubuntu, and real power and terminal operations remain disabled. Power safety now observes bounded CPUWM managed-scope counts and GNOME/Atlas blockers, but cannot verify all running jobs or unsaved files. Safety remains blocked. See [the command protocol](docs/COMMANDS.md) for activation gates.
+**MVP status (v0.8 UI):** The Raspberry Pi hub runs privately over Tailscale HTTPS. The default Dashboard is **Ubuntu-first**: live signed Ubuntu CPU/GPU/RAM/disk/temperature/fan/uptime telemetry, two single-action, stateful SVG power cards for Ubuntu and LG, and locally customizable metric tiles. The Control tab shows actual Ubuntu audio/network/CPUWM status and clearly marks unimplemented remote controls as disabled. Wake-on-LAN and LG webOS controls (when paired) are connected; on/off claims are based on Ubuntu telemetry or read-only webOS power state, never merely on ping. Volume/Mute and confirmed CPUWM profile changes are available through an opt-in, verified Tailnet-owner command channel (see docs/COMMANDS.md). Control now includes read-only Ubuntu power safety and a durable, cancelable timer preview. This is simulation only: it never shuts down or restarts Ubuntu, and real power and terminal operations remain disabled. Power safety now observes bounded CPUWM managed-scope counts and GNOME/Atlas blockers, but cannot verify all running jobs or unsaved files. Safety remains blocked. See [the command protocol](docs/COMMANDS.md) for activation gates.
 
 ## Architecture
 
@@ -25,6 +25,7 @@ The backend is Python, and the frontend is static HTML/CSS/JavaScript with no bu
 - bin/: Raspberry Pi status, Wake-on-LAN, LG pairing and Tailnet publication.
 - agent/desktop_status.py: read-only Ubuntu telemetry (no root, no daemon).
 - agent/power_safety.py: conservative read-only Atlas, CPUWM status, desktop work and inhibitor checks. No power execution.
+- agent/atlas_guard.py: read-only Atlas SQLite proof separating idle/RUN from explicit owner STOP; no Codex stop or power action (see docs/ATLAS_POWER_POLICY.md).
 - web/power_preview.py: persisted timer simulation, separate from the command queue.
 - agent/outbound.py: outgoing HTTPS-only sender to the private Raspberry Pi hub.
 - agent/cpu_monitor.py: 1-second read-only /proc/stat per-core sampler and bounded 90-second activity history.

@@ -47,7 +47,7 @@
       <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
       <div class="sidebar-bottom">
         <span class="privacy-dot"></span> Private via Tailscale
-        <div class="side-version">Ubuntu Control v0.7</div>
+        <div class="side-version">Ubuntu Control v0.8</div>
       </div>
     </nav>
     <main id="main">
@@ -212,10 +212,13 @@
             <p id="power-safety-status" role="status">Safety data unavailable</p>
             <div class="power-guard-summary" aria-label="Ubuntu power readiness">
               <div><span>Atlas service</span><strong id="guard-atlas">Unknown</strong></div>
+              <div><span>Atlas scheduler</span><strong id="guard-atlas-dispatch">Unknown</strong></div>
+              <div><span>Active Atlas attempts</span><strong id="guard-atlas-attempts">Unknown</strong></div>
+              <div><span>Codex stopped by user</span><strong id="guard-codex-stop">Not verified</strong></div>
               <div><span>CPUWM extra scopes</span><strong id="guard-cpuwm">Unknown</strong></div>
               <div><span>Unsaved desktop work</span><strong id="guard-desktop">Unverified</strong></div>
             </div>
-            <p class="guard-hint">Zero CPUWM scopes does not prove that Atlas is idle or files are saved.</p>
+            <p class="guard-hint">Idle Codex agents, empty queues and quota limits do not count as user stop. Atlas in RUN can dispatch new work at any time. Zero CPUWM scopes does not prove system idleness.</p>
             <details id="power-safety-more">
               <summary>View safety details (<span id="power-safety-count">0</span>)</summary>
               <ul id="power-safety-details"></ul>

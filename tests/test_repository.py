@@ -209,6 +209,22 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertNotIn('id="desktop-off"', dashboard)
         self.assertNotIn('id="tv-off"', dashboard)
 
+    def test_atlas_owner_stop_is_separate_from_idle_and_quota(self):
+        html = (ROOT / "web/static/index.html").read_text()
+        js = (ROOT / "web/static/app.js").read_text()
+        py = (ROOT / "agent/atlas_guard.py").read_text()
+        for identifier in ("guard-atlas-dispatch","guard-atlas-attempts","guard-codex-stop"):
+            self.assertIn('id="' + identifier + '"',html)
+            self.assertIn('put("' + identifier + '"',js)
+        self.assertIn("Atlas scheduler",html)
+        self.assertIn("Codex stopped by user",html)
+        self.assertIn("owner_stop_no_active_attempts",js)
+        self.assertIn("armed_idle",py)
+        self.assertIn("Explicit owner stop requested",py)
+        self.assertIn("mode=ro",py)
+        self.assertIn("atlas_power_gate_clear",py)
+        self.assertNotIn("shutdown -h",py)
+
     def test_power_safety_summaries_are_read_only(self):
         html = (ROOT / "web/static/index.html").read_text()
         js = (ROOT / "web/static/app.js").read_text()

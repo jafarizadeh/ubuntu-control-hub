@@ -9,6 +9,8 @@ import stat
 import subprocess
 import time
 
+from atlas_guard import read_atlas_dispatch_state
+
 ATLAS = ["/usr/bin/systemctl", "--user", "show", "twt-roadmap-atlas.service",
          "--property=LoadState,ActiveState,SubState", "--no-pager"]
 INHIBITORS = ["/usr/bin/systemd-inhibit", "--list", "--no-pager"]
@@ -167,6 +169,7 @@ def parse_cpuwm(text, now):
 
 def collect_power_safety():
     atlas = parse_atlas(read_command(ATLAS))
+    atlas_control = read_atlas_dispatch_state()
     inhibitors = parse_inhibitors(read_command(INHIBITORS))
     processes = read_command(PROCESSES)
     cpuwm = parse_cpuwm(read_command(CPUWM), datetime.now(timezone.utc))
@@ -205,10 +208,25 @@ def collect_power_safety():
             reasons.append("CPUWM reports active enforcement groups; protect running work.")
     if desktop_categories:
         reasons.append("Desktop applications may contain unsaved work: " + ", ".join(desktop_categories) + ".")
-    if atlas == "active":
-        reasons.append("Atlas service is active; protect running work.")
-    elif atlas == "unknown":
+    # Never infer explicit owner stop from idle agents, empty queues,
+    # quota exhaustion or a non-running service. Atlas may dispatch at any
+    # moment while the authoritative scheduler mode remains RUN.
+    dispatch = atlas_control.get("status", "unavailable")
+    if dispatch in ("running", "armed_idle"):
+        reasons.append("Atlas scheduler is in RUN mode; it can start new Codex tasks even when agents are idle or queues are empty.")
+    elif dispatch == "owner_stop_draining":
+        reasons.append("Atlas owner STOP was requested, but model attempts are still in flight.")
+    elif dispatch == "owner_stop_no_active_attempts":
+        warnings.append("Atlas scheduler STOP is explicitly recorded by the owner; no active database attempts were found.")
+        unknowns.append("Codex user-stop and complete worker drain are not yet independently verified.")
+    elif dispatch == "unverified_stop":
+        reasons.append("Atlas scheduler appears STOPPED without a verified explicit owner stop; inactivity cannot authorize shutdown.")
+    else:
+        unknowns.append("Atlas owner-stop evidence is unavailable; idle Codex agents do not authorize shutdown.")
+    if atlas == "unknown":
         unknowns.append("Atlas service state is unknown.")
+    elif atlas == "active" and dispatch not in ("owner_stop_no_active_attempts", "owner_stop_draining"):
+        reasons.append("Atlas service is active and no verified drained owner stop exists.")
     if inhibitors["unknown"]:
         unknowns.append("Shutdown inhibitor data is missing or ambiguous.")
     if inhibitors["shutdown_block"]:
@@ -222,6 +240,7 @@ def collect_power_safety():
     if categories:
         reasons.append("Known workload categories are present: " + ", ".join(categories) + ".")
     return {"checked_at": datetime.now(timezone.utc).isoformat(), "safe_to_request": False,
-            "atlas_state": atlas, "inhibitors": inhibitors, "workload_categories": categories,
+            "atlas_state": atlas, "atlas_control": atlas_control,
+            "inhibitors": inhibitors, "workload_categories": categories,
             "cpuwm": cpuwm, "desktop_work": desktop_work,
             "unknowns": unknowns, "blocked_reasons": reasons + unknowns, "warnings": warnings}

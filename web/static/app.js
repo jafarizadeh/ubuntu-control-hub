@@ -822,6 +822,9 @@ function clearPowerPreview() {
   previewState = null;
   put("power-safety-status", "Safety data unavailable — power actions blocked");
   put("guard-atlas", "Unknown");
+  put("guard-atlas-dispatch", "Unknown");
+  put("guard-atlas-attempts", "Unknown");
+  put("guard-codex-stop", "Not verified");
   put("guard-cpuwm", "Unknown");
   put("guard-desktop", "Unverified");
   el("power-safety-details").replaceChildren();
@@ -838,8 +841,22 @@ function paintPowerPreview(data) {
   const safety = data.safety || {};
   const cpuwm = safety.cpuwm || {};
   const desktopWork = safety.desktop_work || {};
+  const atlasControl = safety.atlas_control || {};
   put("guard-atlas", safety.atlas_state === "active" ? "Active" :
     safety.atlas_state === "inactive" ? "Inactive" : "Unknown");
+  const atlasLabels = {
+    running: "RUN · executing",
+    armed_idle: "RUN · can dispatch",
+    unverified_stop: "STOP · origin unknown",
+    owner_stop_draining: "Owner STOP · draining",
+    owner_stop_no_active_attempts: "Owner STOP · no active attempts",
+    unavailable: "Unknown",
+  };
+  put("guard-atlas-dispatch", atlasLabels[atlasControl.status] || "Unknown");
+  put("guard-atlas-attempts", Number.isInteger(atlasControl.inflight_attempts)
+    ? fmt(atlasControl.inflight_attempts, 0) + " active" : "Unknown");
+  put("guard-codex-stop", atlasControl.codex_user_stop_verified === true
+    ? "Verified user stop" : "Not verified");
   put("guard-cpuwm", cpuwm.status === "fresh" && Number.isInteger(cpuwm.managed_scopes)
     ? fmt(cpuwm.managed_scopes, 0) + " extra" : "Unknown");
   put("guard-desktop", desktopWork.status === "unverifiable" ?
