@@ -98,8 +98,37 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn('/api/commands', js)
         self.assertIn('commandAuthorizedAndReady()', js)
         self.assertIn('cpuwm.set_profile', js)
-        self.assertIn('window.confirm(', js)
+        self.assertIn('window.UbuntuIOS.confirm(', js)
 
+
+    def test_ios_timer_profile_and_custom_dialogs(self):
+        html=(ROOT/"web/static/index.html").read_text()
+        ui=(ROOT/"web/static/ios-ui.js").read_text()
+        css=(ROOT/"web/static/ios-controls.css").read_text()
+        js=(ROOT/"web/static/app.js").read_text()
+        worker=(ROOT/"web/static/sw.js").read_text()
+        for name in ("ios-picker-sheet", "ios-confirm-dialog", "ios-hours-wheel",
+                     "ios-minutes-wheel", "ios-sheet-done", "ios-confirm-submit",
+                     "duration-picker-open", "profile-picker-open", "ios-ring-progress",
+                     "ios-timer-readout", "power-preview-delay", "power-preview-action"):
+            self.assertIn('id="'+name+'"', html)
+        self.assertIn('data-duration="240"', html)
+        self.assertIn('data-profile-option="performance"', html)
+        self.assertNotIn('<select id="profile-selector"', html)
+        self.assertNotIn('<select id="power-preview-action"', html)
+        self.assertNotIn('type="number" id="power-preview-delay"', html)
+        self.assertNotIn("window.confirm(", js)
+        self.assertIn('dialog.showModal()', ui)
+        self.assertIn('preview_only !== true', ui)
+        self.assertIn('will_execute !== false', ui)
+        self.assertIn('performance.now()', ui)
+        self.assertIn('Raspberry Pi remains authoritative', ui)
+        self.assertIn("prefers-reduced-motion", css)
+        self.assertIn(".ios-picker-sheet::backdrop", css)
+        self.assertIn("/ios-controls.css", worker)
+        self.assertIn("/ios-ui.js", worker)
+        self.assertIn('method: "POST"', js)
+        self.assertIn('cancel ? "/api/power/cancel" : "/api/power/preview"', js)
 
     def test_user_supplied_svg_assets_are_local_and_inert(self):
         import xml.etree.ElementTree as ET

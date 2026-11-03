@@ -12,6 +12,8 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon-180.png">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/ios-controls.css">
+  <script src="/ios-ui.js" defer></script>
   <script src="/app.js" defer></script>
   <title>Ubuntu Control</title>
 </head>
@@ -43,7 +45,7 @@
       <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
       <div class="sidebar-bottom">
         <span class="privacy-dot"></span> Private via Tailscale
-        <div class="side-version">Ubuntu Control v0.4.1</div>
+        <div class="side-version">Ubuntu Control v0.5</div>
       </div>
     </nav>
     <main id="main">
@@ -159,16 +161,56 @@
               <summary>View safety details (<span id="power-safety-count">0</span>)</summary>
               <ul id="power-safety-details"></ul>
             </details>
-            <label class="field-label" for="power-preview-action">Simulation mode</label>
-            <select id="power-preview-action"><option value="shutdown">Shutdown preview</option><option value="restart">Restart preview</option></select>
-            <label class="field-label" for="power-preview-delay">Delay in minutes (1–240)</label>
-            <input id="power-preview-delay" type="number" min="1" max="240" step="1" value="15">
-            <div class="inline-actions">
-              <button class="btn btn-primary" id="power-preview-create" type="button" disabled>Preview timer</button>
-              <button class="btn btn-outline" id="power-preview-cancel" type="button" disabled>Cancel preview</button>
+            <div class="ios-setting-heading"><span>Preview action</span><small>SIMULATION ONLY</small></div>
+            <div class="ios-segment" role="group" aria-label="Simulated power action">
+              <button type="button" class="ios-segment-item selected" data-preview-mode="shutdown" aria-pressed="true">
+                <span class="ios-segment-emoji" aria-hidden="true">⏻</span> Shutdown
+              </button>
+              <button type="button" class="ios-segment-item" data-preview-mode="restart" aria-pressed="false">
+                <span class="ios-segment-emoji" aria-hidden="true">↻</span> Restart
+              </button>
+            </div>
+            <input id="power-preview-action" type="hidden" value="shutdown">
+            <div class="ios-setting-heading ios-time-heading"><span>Duration</span><small>1 MIN — 4 HOURS</small></div>
+            <button type="button" class="ios-duration-trigger" id="duration-picker-open" aria-haspopup="dialog" aria-controls="ios-picker-sheet">
+              <span class="ios-time-symbol" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                  <circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5l3.5 2"></path>
+                </svg>
+              </span>
+              <span class="ios-duration-text"><strong id="duration-display">15 min</strong><small>Tap to adjust duration</small></span>
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </button>
+            <input id="power-preview-delay" type="hidden" value="15">
+            <div class="ios-preset-list" role="group" aria-label="Quick timer presets">
+              <button type="button" class="ios-preset" data-duration="5">5m</button>
+              <button type="button" class="ios-preset selected" data-duration="15" aria-pressed="true">15m</button>
+              <button type="button" class="ios-preset" data-duration="30">30m</button>
+              <button type="button" class="ios-preset" data-duration="60">1h</button>
+              <button type="button" class="ios-preset" data-duration="120">2h</button>
+              <button type="button" class="ios-preset" data-duration="240">4h</button>
+            </div>
+            <div class="ios-preview-meter" aria-live="off" aria-label="Timer preview status">
+              <div class="ios-ring-wrap">
+                <svg class="ios-timer-ring" viewBox="0 0 100 100" aria-hidden="true">
+                  <circle cx="50" cy="50" r="43" class="ios-ring-back"/>
+                  <circle cx="50" cy="50" r="43" class="ios-ring-progress" id="ios-ring-progress"/>
+                </svg>
+                <span id="ios-timer-readout" class="ios-timer-readout">—</span>
+              </div>
+              <div class="ios-preview-info">
+                <div class="ios-preview-kicker">POWER TIMER · PREVIEW</div>
+                <strong id="ios-timer-state">No active preview</strong>
+                <small id="ios-timer-sync">Server-synced, never executes</small>
+                <span class="ios-preview-tag">NOT ARMED</span>
+              </div>
+            </div>
+            <div class="ios-action-row">
+              <button class="ios-action-main" id="power-preview-create" type="button" disabled>Start preview</button>
+              <button class="ios-action-secondary" id="power-preview-cancel" type="button" disabled>Cancel</button>
             </div>
             <p id="power-preview-status" role="status" aria-live="polite">Preview unavailable</p>
-            <p class="control-note">Remaining time comes from the server on refresh. Elapsed previews never execute.</p>
+            <p class="control-note">Simulation only. No shutdown or restart command is sent.</p>
           </article>
           <article class="control-card panel">
             <div class="control-card-header"><div class="control-icon">♫</div><div><h3>Sound</h3><p>Ubuntu audio output</p></div><span class="feature-state" id="audio-capability">Read only</span></div>
@@ -190,9 +232,14 @@
           <article class="control-card panel">
             <div class="control-card-header"><div class="control-icon"><img src="/assets/cpu.svg" alt="" aria-hidden="true"></div><div><h3>CPU & GPU Workload Manager</h3><p>Existing performance controller</p></div><span class="feature-state" id="performance-capability">Checking</span></div>
             <div class="setting-line"><span>Active profile</span><strong id="control-profile">—</strong></div>
-            <label class="field-label" for="profile-selector">Target profile</label>
-            <select id="profile-selector" disabled><option value="quiet">Quiet</option><option value="balanced" selected>Balanced</option><option value="performance">Performance</option></select>
-            <button class="btn btn-outline btn-wide" id="apply-profile" type="button" disabled>Apply profile</button>
+            <label class="field-label" for="profile-picker-open">Target profile</label>
+            <input id="profile-selector" type="hidden" value="balanced" disabled>
+            <button type="button" class="ios-profile-trigger" id="profile-picker-open" disabled aria-haspopup="dialog" aria-controls="ios-picker-sheet">
+              <span class="ios-profile-dot" aria-hidden="true"></span>
+              <span id="profile-selected-label">Balanced</span>
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </button>
+            <button class="btn btn-primary btn-wide" id="apply-profile" type="button" disabled>Apply profile</button>
             <p class="control-note">Changes are made through the existing CPU &amp; GPU Workload Manager and may affect active computing jobs. Each change requires confirmation.</p>
           </article>
           <article class="control-card panel">
@@ -239,6 +286,58 @@
     <button class="bottom-item" type="button" data-tab="history"><span aria-hidden="true">◷</span>History</button>
   </nav>
   <div class="toast" role="status" id="toast" aria-live="polite"></div>
+
+  <dialog id="ios-picker-sheet" class="ios-picker-sheet" aria-labelledby="ios-picker-title">
+    <div class="ios-sheet-handle" aria-hidden="true"></div>
+    <div class="ios-sheet-head">
+      <button type="button" class="ios-sheet-cancel" id="ios-sheet-cancel">Cancel</button>
+      <h2 id="ios-picker-title">Select option</h2>
+      <button type="button" class="ios-sheet-done" id="ios-sheet-done">Done</button>
+    </div>
+    <div id="ios-sheet-duration">
+      <p class="ios-sheet-subtitle">Choose a delay from one minute to four hours.</p>
+      <div class="ios-wheels" role="group" aria-label="Timer duration">
+        <div class="ios-wheel-col">
+          <div class="ios-wheel-track" id="ios-hours-wheel" role="group" aria-label="Hours"></div>
+          <span class="ios-wheel-caption">HOURS</span>
+        </div>
+        <span class="ios-wheel-divider" aria-hidden="true">:</span>
+        <div class="ios-wheel-col">
+          <div class="ios-wheel-track" id="ios-minutes-wheel" role="group" aria-label="Minutes"></div>
+          <span class="ios-wheel-caption">MINUTES</span>
+        </div>
+      </div>
+      <div class="ios-sheet-summary" id="ios-sheet-duration-summary" role="status">15 minutes selected</div>
+    </div>
+    <div id="ios-sheet-profiles" hidden>
+      <p class="ios-sheet-subtitle">Choose a Workload Manager profile. No change is applied until you confirm.</p>
+      <div class="ios-profile-options" role="group" aria-label="Workload Manager profile">
+        <button type="button" class="ios-profile-option" data-profile-option="quiet">
+          <span class="ios-option-symbol">◡</span><span><strong>Quiet</strong><small>Lower noise and power usage</small></span><span class="ios-option-check" aria-hidden="true">✓</span>
+        </button>
+        <button type="button" class="ios-profile-option" data-profile-option="balanced">
+          <span class="ios-option-symbol">◉</span><span><strong>Balanced</strong><small>Everyday workload balance</small></span><span class="ios-option-check" aria-hidden="true">✓</span>
+        </button>
+        <button type="button" class="ios-profile-option" data-profile-option="performance">
+          <span class="ios-option-symbol">↗</span><span><strong>Performance</strong><small>Higher performance; may affect active jobs</small></span><span class="ios-option-check" aria-hidden="true">✓</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="ios-confirm-dialog" class="ios-confirm-dialog" aria-labelledby="ios-confirm-title" aria-describedby="ios-confirm-message">
+    <div class="ios-confirm-panel">
+      <div class="ios-confirm-symbol" id="ios-confirm-symbol" aria-hidden="true">⏻</div>
+      <div class="ios-confirm-eyebrow" id="ios-confirm-eyebrow">CONFIRM ACTION</div>
+      <h2 id="ios-confirm-title">Continue?</h2>
+      <p id="ios-confirm-message">Review this action before proceeding.</p>
+      <div class="ios-confirm-note" id="ios-confirm-note"></div>
+      <div class="ios-confirm-actions">
+        <button type="button" class="ios-confirm-cancel" id="ios-confirm-cancel">Cancel</button>
+        <button type="button" class="ios-confirm-submit" id="ios-confirm-submit">Confirm</button>
+      </div>
+    </div>
+  </dialog>
 </div>
 </body>
 </html>

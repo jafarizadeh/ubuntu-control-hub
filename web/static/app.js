@@ -104,12 +104,7 @@ function initCustomization() {
 }
 
 function toast(message, error = false) {
-  const node = el("toast");
-  node.textContent = message;
-  node.classList.toggle("error", error);
-  node.classList.add("visible");
-  if (app.toastTimer) clearTimeout(app.toastTimer);
-  app.toastTimer = setTimeout(() => node.classList.remove("visible"), 4700);
+  window.UbuntuIOS.notify(message, error);
 }
 
 async function api(path, options = {}) {
@@ -163,7 +158,7 @@ function paintWithoutUbuntu() {
   el("network-control-icon").src = "/assets/wifi-off.svg";
   put("performance-capability", "Unavailable");
   el("performance-capability").classList.remove("online");
-  el("profile-selector").value = "balanced";
+  window.UbuntuIOS.setProfile("balanced", false);
   el("data-freshness").classList.remove("online");
   put("data-freshness", "No live data");
   const footer = document.querySelector(".overview-footer");
@@ -247,7 +242,11 @@ function paintUbuntu(report) {
   put("performance-capability", manager.available ? "Connected" : "Unavailable");
   el("performance-capability").classList.toggle("online", Boolean(manager.available));
   if (["quiet", "balanced", "performance"].includes(manager.profile)) {
-    el("profile-selector").value = manager.profile;
+    if (!window.UbuntuIOS.profileDirty()) {
+      window.UbuntuIOS.setProfile(manager.profile, false);
+    } else if (el("profile-selector").value === manager.profile) {
+      window.UbuntuIOS.markProfileSynced();
+    }
   }
 }
 
@@ -455,11 +454,37 @@ async function executeAction(name, button) {
   };
   const action = actions[name];
   if (!action || button.disabled) return;
-  if (name === "tv-power-off" && !window.confirm("Put the LG display into standby?")) return;
-  if (name === "wake-desktop" && !window.confirm("Send a Wake-on-LAN packet to Ubuntu Desktop?")) return;
-  if (name === "pair-tv" && !window.confirm(
-    "Turn on the LG display. Approve the connection prompt on the TV after continuing."
-  )) return;
+  const confirmations = {
+    "tv-power-off": {
+      tone: "danger", symbol: "⏻", eyebrow: "LG DISPLAY · POWER",
+      title: "Put display in standby?",
+      message: "The LG screen will be asked to enter standby.",
+      note: "Your Raspberry Pi sends a paired webOS command. The app will check the reported power state afterward.",
+      confirmText: "Enter standby",
+    },
+    "wake-desktop": {
+      symbol: "↗", eyebrow: "UBUNTU · WAKE SIGNAL",
+      title: "Wake Ubuntu Desktop?",
+      message: "Send a Wake-on-LAN signal to the workstation.",
+      note: "A wake packet is not proof that Ubuntu has started. Its status will be checked separately.",
+      confirmText: "Send wake",
+    },
+    "wake-tv": {
+      symbol: "↗", eyebrow: "LG DISPLAY · WAKE SIGNAL",
+      title: "Wake LG Display?",
+      message: "Send a wake signal through Raspberry Pi.",
+      note: "The screen may still be off even if it responds to the network.",
+      confirmText: "Send wake",
+    },
+    "pair-tv": {
+      symbol: "▣", eyebrow: "LG WEBOS · CONNECTION",
+      title: "Connect LG Display?",
+      message: "Turn on the LG display before continuing.",
+      note: "An approval prompt may appear on the TV. Choose Allow using the television remote.",
+      confirmText: "Start pairing",
+    },
+  };
+  if (confirmations[name] && !(await window.UbuntuIOS.confirm(confirmations[name]))) return;
 
   button.disabled = true;
   try {
@@ -525,6 +550,7 @@ async function loadHistory() {
 }
 
 async function init() {
+  window.UbuntuIOS.init();
   initCustomization();
   initCommandControls();
   initPowerPreview();
@@ -567,6 +593,7 @@ function syncControls() {
   el("apply-volume").disabled = !audioReady;
   el("mute-toggle").disabled = !audioReady;
   el("profile-selector").disabled = !profileReady;
+  el("profile-picker-open").disabled = !profileReady;
   el("apply-profile").disabled = !profileReady;
   put("mute-toggle", report.audio?.muted ? "Unmute" : "Mute");
   put("audio-capability", audioReady ? "Control enabled" : report.audio?.available ? "Monitoring" : "Unavailable");
@@ -672,11 +699,21 @@ function initCommandControls() {
     const mute = !Boolean(audio.muted);
     void submitCommand("audio.set_mute", mute, mute ? "Mute Ubuntu audio" : "Unmute Ubuntu audio");
   });
-  el("apply-profile").addEventListener("click", () => {
+  el("apply-profile").addEventListener("click", async () => {
     const profile = el("profile-selector").value;
     if (!["quiet", "balanced", "performance"].includes(profile)) return;
-    if (!window.confirm("Change CPU & GPU Workload Manager to " + profile +
-      "? This may affect running workloads and the thermal/resource budget.")) return;
+    if (!commandAuthorizedAndReady()) {
+      feedback("Changes are locked until the authorized Ubuntu agent is available.", "error");
+      return;
+    }
+    const approved = await window.UbuntuIOS.confirm({
+      tone: "warning", symbol: "◉", eyebrow: "CPU & GPU · PERFORMANCE",
+      title: "Apply " + profile + " profile?",
+      message: "Update the active CPU & GPU Workload Manager profile.",
+      note: "This can change the resource budget of running workloads. The change will only be considered complete after Ubuntu confirms execution.",
+      confirmText: "Apply profile",
+    });
+    if (!approved) return;
     void submitCommand("cpuwm.set_profile", profile, "CPUWM " + profile, true);
   });
 }
@@ -703,6 +740,7 @@ function clearPowerPreview() {
   put("power-safety-count", "0");
   el("power-safety-more").open = false;
   put("power-preview-status", "Preview unavailable — refresh to check server state");
+  window.UbuntuIOS.clearPreview();
   syncPreviewControls();
 }
 
@@ -732,6 +770,7 @@ function paintPowerPreview(data) {
   put("power-preview-status", "Simulation: " + data.state + (data.action ? " · " + data.action : "")
     + " · " + data.remaining_seconds + " seconds remaining (server reading at "
     + new Date(data.server_time * 1000).toLocaleTimeString("en-GB") + ")");
+  window.UbuntuIOS.renderPreview(data);
   syncPreviewControls();
 }
 

@@ -1,0 +1,129 @@
+/* Ubuntu Control — iPhone-friendly controls, light appearance only */
+:root{--ios-ink:#172b3d;--ios-border:#e1e8ef;--ios-tint:#16766e;--ios-blue:#137a78}
+.ios-setting-heading{display:flex;align-items:center;justify-content:space-between;gap:9px;margin:22px 0 10px;color:#52677c;font-size:12px;font-weight:750}
+.ios-setting-heading small{font-size:9px;letter-spacing:.75px;color:#9baab9;white-space:nowrap;font-weight:780}
+.ios-time-heading{margin-top:24px}
+.ios-segment{display:grid;grid-template-columns:1fr 1fr;gap:5px;border-radius:15px;padding:5px;background:#edf2f6;border:1px solid #e8eef3}
+.ios-segment-item{border:0;border-radius:11px;min-height:44px;background:transparent;color:#7990a2;font-size:12px;font-weight:740;display:flex;align-items:center;justify-content:center;gap:8px}
+.ios-segment-item.selected{background:#fff;box-shadow:0 2px 9px #26485d16;color:#1d455b}
+.ios-segment-item:focus-visible,.ios-preset:focus-visible{outline:2px solid var(--ios-tint);outline-offset:2px}
+.ios-segment-emoji{font-size:20px;font-weight:500;line-height:1}
+.ios-duration-trigger,.ios-profile-trigger{display:flex;align-items:center;width:100%;min-height:78px;text-align:left;border-radius:16px;border:1px solid var(--ios-border);background:linear-gradient(145deg,#fff,#fbfdff);padding:14px;box-shadow:0 4px 13px #274d6708;color:var(--ios-ink)}
+.ios-duration-trigger:hover:not(:disabled),.ios-profile-trigger:hover:not(:disabled){border-color:#bdd4d3}
+.ios-time-symbol{width:49px;height:49px;flex-shrink:0;border-radius:14px;background:#e9f5f2;color:var(--ios-tint);display:grid;place-items:center;margin-right:13px}
+.ios-time-symbol svg{width:24px;height:24px}
+.ios-duration-text{display:flex;flex-direction:column;min-width:0;flex:1;gap:4px}
+.ios-duration-text strong{font-weight:820;line-height:1.1;font-size:25px;letter-spacing:-.7px;font-variant-numeric:tabular-nums}
+.ios-duration-text small{color:#95a5b4;font-size:10px}
+.ios-chevron{font-size:25px;line-height:1;color:#9faebb;font-weight:350;padding:0 4px}
+.ios-preset-list{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:12px}
+.ios-preset{min-width:0;min-height:38px;border:1px solid #e4ebf1;background:#f7fafc;color:#71859a;border-radius:11px;font-weight:750;font-size:11px}
+.ios-preset.selected{background:#e6f4ef;border-color:#b9ddd0;color:#18735d}
+.ios-preset:not(.selected):hover{background:#edf4f6}
+.ios-preview-meter{margin-top:22px;padding:18px 14px;min-height:136px;background:linear-gradient(135deg,#f2f9f8,#f8fafc);border:1px solid #e0edeb;border-radius:18px;display:flex;align-items:center;gap:16px}
+.ios-ring-wrap{width:112px;height:112px;position:relative;flex-shrink:0}
+.ios-timer-ring{display:block;width:100%;height:100%;transform:rotate(-90deg)}
+.ios-ring-back{fill:none;stroke:#dfece9;stroke-width:6}
+.ios-ring-progress{fill:none;stroke:var(--ios-tint);stroke-width:6;stroke-linecap:round;stroke-dasharray:270.18;stroke-dashoffset:270.18;transition:stroke-dashoffset .55s linear}
+.ios-timer-readout{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#255b59;font-size:17px;letter-spacing:-.4px;font-weight:830;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ios-preview-info{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0;flex:1}
+.ios-preview-kicker{color:#7e9d9a;font-weight:780;font-size:9px;letter-spacing:1px}
+.ios-preview-info strong{color:#1a4049;font-size:14px;line-height:1.35;font-weight:800}
+.ios-preview-info small{color:#79969d;font-size:10px;line-height:1.4}
+.ios-preview-tag{color:#936f46;background:#fff0d9;border-radius:99px;padding:4px 9px;font-size:9px;font-weight:840;letter-spacing:.7px;margin-top:5px}
+.ios-action-row{display:grid;grid-template-columns:1.35fr 1fr;gap:9px;margin-top:17px}
+.ios-action-main,.ios-action-secondary{min-height:47px;border-radius:13px;padding:10px 12px;border:0;font-size:12px;font-weight:780}
+.ios-action-main{background:#16766e;color:#fff}
+.ios-action-main:hover:not(:disabled){background:#105d56}
+.ios-action-secondary{background:#fff;color:#617a8c;border:1px solid #dfe7ee}
+.ios-action-main:disabled,.ios-action-secondary:disabled{opacity:.44;background:#edf1f4;color:#7b8fa1;border:1px solid #e2e8ee}
+#power-preview-card #power-preview-status{border:0;background:transparent;padding:6px 2px 0;margin:5px 0 0;color:#79949e;font-size:10px;line-height:1.6}
+#power-preview-card .ios-profile-trigger{min-height:57px}
+.ios-profile-trigger{gap:12px;min-height:58px;padding:13px 15px;font-weight:750;font-size:13px}
+.ios-profile-trigger>span:nth-child(2){flex:1}
+.ios-profile-dot{width:10px;height:10px;flex-shrink:0;border-radius:50%;background:var(--ios-tint);box-shadow:0 0 0 5px #e8f6f2}
+.ios-profile-trigger:disabled{opacity:.53}
+#profile-picker-open{min-height:57px}
+#apply-profile{min-height:46px;margin-top:11px}
+
+.ios-picker-sheet{position:fixed;inset:auto 0 0;margin:0 auto;border:1px solid #e5ebf0;border-bottom:0;border-radius:25px 25px 0 0;padding:0;background:#f9fafc;color:var(--ios-ink);width:min(100%,480px);max-width:480px;max-height:min(92dvh,700px);overflow-x:hidden;overflow-y:auto;box-shadow:0 -24px 60px #0e253044}
+.ios-picker-sheet::backdrop,.ios-confirm-dialog::backdrop{background:rgba(12,26,43,.46);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.ios-sheet-handle{height:5px;width:36px;margin:10px auto 3px;background:#d3dce5;border-radius:99px}
+.ios-sheet-head{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;gap:10px;padding:12px 20px 14px;border-bottom:1px solid #e5ecf1;background:#f9fafc}
+.ios-sheet-head h2{text-align:center;font-size:15px;font-weight:780;letter-spacing:-.2px;margin:0}
+.ios-sheet-cancel,.ios-sheet-done{border:0;background:none;min-height:42px;padding:0 3px;font-size:14px;font-weight:670;color:var(--ios-tint)}
+.ios-sheet-cancel{text-align:left;color:#71879a}
+.ios-sheet-done{text-align:right}
+.ios-sheet-done:disabled{opacity:.3}
+.ios-sheet-subtitle{text-align:center;line-height:1.55;color:#8c9eae;font-size:12px;padding:0 25px;margin:18px auto 13px;max-width:390px}
+.ios-wheels{max-width:330px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 22px 15px}
+.ios-wheel-col{flex:1;min-width:0;position:relative;text-align:center}
+.ios-wheel-col::after{content:"";position:absolute;left:6px;right:6px;top:88px;height:44px;border-radius:11px;background:#e9eff4;pointer-events:none;z-index:0}
+.ios-wheel-track{height:220px;padding:88px 0;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;position:relative;z-index:1}
+.ios-wheel-track::-webkit-scrollbar{display:none}
+.ios-wheel-option{display:flex;width:100%;height:44px;border:0;align-items:center;justify-content:center;color:#9babb8;font-weight:650;font-size:21px;flex-shrink:0;scroll-snap-align:center;background:none;position:relative;z-index:1;font-variant-numeric:tabular-nums}
+.ios-wheel-option.is-selected{color:#1c3344;font-weight:820;font-size:29px}
+.ios-wheel-divider{font-size:27px;font-weight:800;color:#4d6c7f;align-self:center;margin-top:-20px}
+.ios-wheel-caption{color:#92a4b2;font-size:10px;font-weight:820;letter-spacing:1.2px;display:block;margin-top:6px}
+.ios-sheet-summary{text-align:center;font-size:12px;font-weight:690;color:#57827d;margin:8px 20px 0;padding:13px;border-top:1px solid #e5ecf2}
+.ios-picker-sheet>div:last-child{padding-bottom:max(26px,env(safe-area-inset-bottom))}
+.ios-profile-options{margin:0 15px 12px;background:#fff;border:1px solid var(--ios-border);border-radius:17px;overflow:hidden}
+.ios-profile-option{display:flex;width:100%;align-items:center;gap:13px;min-height:77px;border:0;background:#fff;text-align:left;padding:12px 14px;color:#1d3347}
+.ios-profile-option+.ios-profile-option{border-top:1px solid #eef1f5}
+.ios-profile-option.is-selected{background:#f0faf7}
+.ios-profile-option>span:nth-child(2){min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.ios-profile-option strong{font-size:14px}
+.ios-profile-option small{font-size:11px;color:#91a2b2;line-height:1.45}
+.ios-option-symbol{width:39px;height:39px;border-radius:13px;display:grid;place-items:center;background:#edf4f5;color:#447f7b;font-size:23px;flex-shrink:0}
+.ios-option-check{opacity:0;color:var(--ios-tint);font-size:19px;font-weight:830}
+.ios-profile-option.is-selected .ios-option-check{opacity:1}
+
+.ios-confirm-dialog{position:fixed;inset:0;margin:auto;width:min(calc(100% - 32px),395px);max-height:calc(100dvh - 44px);overflow:auto;padding:0;border:1px solid #e7edf2;border-radius:25px;background:#fff;color:var(--ios-ink);box-shadow:0 28px 75px #0f30424a}
+.ios-confirm-panel{padding:30px 24px 23px;text-align:center}
+.ios-confirm-symbol{width:58px;height:58px;display:grid;place-items:center;border-radius:19px;margin:0 auto 18px;background:#e6f6f1;color:#14796b;font-size:30px}
+.ios-confirm-dialog.is-danger .ios-confirm-symbol{color:#af525f;background:#fff0f0}
+.ios-confirm-dialog.is-warning .ios-confirm-symbol{color:#976f2b;background:#fff4e1}
+.ios-confirm-eyebrow{font-size:10px;letter-spacing:1.3px;font-weight:820;color:#91a2af}
+.ios-confirm-panel h2{margin:8px auto 9px;font-size:22px;line-height:1.2;letter-spacing:-.5px;color:#142838}
+.ios-confirm-panel p{margin:0;color:#617589;font-size:13px;line-height:1.6}
+.ios-confirm-note{margin:17px 0 22px;border-radius:13px;padding:13px 14px;text-align:left;background:#f5f8fa;color:#627687;font-size:11px;line-height:1.6}
+.ios-confirm-note:empty{display:none}
+.ios-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ios-confirm-cancel,.ios-confirm-submit{min-height:47px;border-radius:13px;font-size:13px;font-weight:790}
+.ios-confirm-cancel{background:#f2f5f8;color:#6b8193;border:1px solid #e9eef2}
+.ios-confirm-submit{background:var(--ios-tint);color:#fff;border:1px solid var(--ios-tint)}
+.ios-confirm-dialog.is-danger .ios-confirm-submit{background:#ac5360;border-color:#ac5360}
+.ios-confirm-dialog.is-warning .ios-confirm-submit{background:#977536;border-color:#977536}
+.ios-confirm-cancel:active,.ios-confirm-submit:active,.ios-action-main:active:not(:disabled){transform:scale(.985)}
+
+.toast.visible{display:flex!important;align-items:center;gap:12px;min-width:260px;max-width:min(420px,calc(100vw - 24px));padding:14px 12px 14px 14px;background:#fff;color:#263f50;border:1px solid #dae7e6;border-radius:16px;box-shadow:0 15px 44px #1937442e;bottom:calc(25px + env(safe-area-inset-bottom));right:20px;left:auto}
+.toast.error{background:#fff!important;color:#263f50;border-color:#f0d9da}
+.ios-toast-symbol{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:#e7f6f1;color:#137566;flex-shrink:0;font-size:20px;font-weight:800}
+.toast.error .ios-toast-symbol{background:#fff0ee;color:#a94e56}
+.ios-toast-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ios-toast-copy strong{font-size:12px;line-height:1.3}
+.ios-toast-copy span{font-size:11px;color:#8093a2;line-height:1.45;overflow-wrap:anywhere}
+.ios-toast-close{width:28px;height:28px;flex-shrink:0;border:0;border-radius:50%;background:#f3f5f7;color:#7e8b99;font-size:16px;display:grid;place-items:center}
+@media(max-width:740px){
+ .ios-picker-sheet{max-width:100%;width:100%;border-radius:24px 24px 0 0;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+ .toast.visible{bottom:calc(85px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:none}
+ .ios-confirm-dialog{width:min(93vw,395px)}
+}
+@media(max-width:390px){
+ .ios-preview-meter{gap:9px;padding:14px 10px}
+ .ios-ring-wrap{width:98px;height:98px}
+ .ios-duration-text strong{font-size:23px}
+ .ios-preset-list{gap:4px}
+ .ios-preset{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+ .ios-ring-progress{transition:none}
+ .ios-confirm-cancel:active,.ios-confirm-submit:active,.ios-action-main:active:not(:disabled){transform:none}
+}
+
+/* The elegant timer meter carries the visible state; keep the API receipt
+   accessible to assistive technology without repeating raw server metadata. */
+#power-preview-card #power-preview-status{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0
+}

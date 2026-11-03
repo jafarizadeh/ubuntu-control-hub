@@ -36,3 +36,23 @@ CSRF validation is not a substitute for authentication. No OS shutdown, restart,
 ## Validation
 
 Mobile Chromium tests cover the Ubuntu-first layout, separate power buttons, local preference persistence, the Control tab, offline-data clearing and JavaScript errors. iPhone Safari confirmation remains a separate end-to-end task.
+
+## iPhone interface (v0.5 UI)
+
+Power preview selection uses a two-way iOS-style segmented control for Shutdown
+or Restart simulation, six quick duration presets, and a bottom sheet with
+independent hours/minutes scrolling wheels. The allowed duration remains 1 to
+240 minutes. The ring interpolates the server's remaining-seconds snapshot for
+display, but the Raspberry Pi is authoritative and performs **no power action**
+when a preview reaches zero.
+
+Workload Manager profile selection uses a separate accessible bottom sheet for
+Quiet, Balanced, and Performance. Changing the selection does not change the
+actual profile: Apply opens a custom confirmation panel, and the request still
+uses the existing authenticated agent command queue and execution receipt.
+Wake, LG standby and pairing confirmations likewise use a custom in-app
+accessible dialog instead of a browser confirm window. Success/error feedback
+is styled as a dismissible in-app notification.
+
+These are presentation and interaction changes only. No new privileged API
+capability, arbitrary shell, or real shutdown/restart has been enabled.
