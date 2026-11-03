@@ -18,6 +18,7 @@ const STORAGE_KEY = "ubuntu-control.dashboard.metrics.v1";
 const app = {
   session: null, busy: false, timer: null, toastTimer: null,
   tab: "dashboard", lastStatus: null, visibleMetrics: loadMetrics(),
+  canControl: false, commandBusy: false,
 };
 
 const el = (id) => document.getElementById(id);
@@ -257,7 +258,7 @@ function renderStatus(data) {
     paintUbuntu(desktop.metrics);
     setConnectionState("online");
     setTag("desktop-state", "Online", true);
-    put("desktop-agent-state", "Read-only agent connected");
+    put("desktop-agent-state", "Ubuntu agent connected");
     put("updated-at", "Updated " + new Date(
       (desktop.metrics.checked_at_unix || desktop.last_agent_report_unix) * 1000
     ).toLocaleTimeString("en-GB", {hour: "2-digit", minute: "2-digit"}));
@@ -288,6 +289,7 @@ function renderStatus(data) {
   el("pair-tv-btn").disabled = !tvReachable;
   el("tv-remote-controls").hidden = !tv.paired;
   document.querySelectorAll("#tv-remote-controls [data-action]").forEach((button) => { button.disabled = !tvReachable || !tv.paired; });
+  syncControls();
   put("tv-controls-message", tv.paired
     ? "LG webOS is paired. Volume and standby controls are available."
     : "Turn on the LG display and approve the pairing request on its screen.");
@@ -299,6 +301,7 @@ async function refreshStatus(manual = false) {
   el("refresh-btn").disabled = true;
   try {
     renderStatus(await api("/api/status"));
+    syncControls();
     if (manual) toast("Ubuntu status refreshed.");
   } catch {
     app.lastStatus = null;
@@ -314,6 +317,7 @@ async function refreshStatus(manual = false) {
     el("tv-off").disabled = true;
     el("pair-tv-btn").disabled = true;
     document.querySelectorAll("#tv-remote-controls [data-action]").forEach((button) => { button.disabled = true; });
+    syncControls();
     if (manual) toast("Cannot reach the private Hub. Check Tailscale.", true);
   } finally {
     app.busy = false;
@@ -332,6 +336,7 @@ function switchTab(tab) {
   });
   window.scrollTo({top: 0, behavior: "instant"});
   if (tab === "history") loadHistory();
+  if (tab === "control") void refreshControlAccess();
 }
 
 async function executeAction(name, button) {
@@ -418,6 +423,7 @@ async function loadHistory() {
 
 async function init() {
   initCustomization();
+  initCommandControls();
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
   });
@@ -431,10 +437,144 @@ async function init() {
   try { app.session = await api("/api/session"); }
   catch { app.session = null; }
   await refreshStatus();
+  await refreshControlAccess();
   app.timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
   if ("serviceWorker" in navigator && window.isSecureContext) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
 }
+
+const CONTROL_STATUS = new Set(["queued", "delivered", "succeeded", "failed", "expired"]);
+
+function commandAuthorizedAndReady() {
+  if (!app.canControl || app.commandBusy || !app.lastStatus) return false;
+  const desktop = app.lastStatus.desktop || {};
+  const age = Date.now() / 1000 - Number(desktop.last_agent_report_unix || 0);
+  return desktop.control_agent === "online" && desktop.metrics && age >= -15 && age < 45;
+}
+
+function syncControls() {
+  const ready = Boolean(commandAuthorizedAndReady());
+  const report = app.lastStatus?.desktop?.metrics || {};
+  const audioReady = ready && report.audio?.available === true;
+  const profileReady = ready && report.workload_manager?.available === true;
+
+  el("volume-slider").disabled = !audioReady;
+  el("apply-volume").disabled = !audioReady;
+  el("mute-toggle").disabled = !audioReady;
+  el("profile-selector").disabled = !profileReady;
+  el("apply-profile").disabled = !profileReady;
+  put("mute-toggle", report.audio?.muted ? "Unmute" : "Mute");
+  put("audio-capability", audioReady ? "Control enabled" : report.audio?.available ? "Monitoring" : "Unavailable");
+  put("performance-capability", profileReady ? "Control enabled" : report.workload_manager?.available ? "Monitoring" : "Unavailable");
+  el("performance-capability").classList.toggle("online", Boolean(profileReady));
+  put("control-access", app.commandBusy ? "Waiting for Ubuntu confirmation…" :
+    !app.canControl ? "Changes locked · owner access required" :
+    !ready ? "Ubuntu agent offline or unavailable" :
+    "Owner verified · secure commands ready");
+}
+
+async function refreshControlAccess() {
+  try {
+    const capability = await api("/api/control/capabilities");
+    app.canControl = capability?.can_control === true;
+  } catch {
+    app.canControl = false;
+  }
+  syncControls();
+}
+
+function feedback(message, level = "") {
+  const pane = el("command-feedback");
+  pane.hidden = false;
+  pane.classList.toggle("error", level === "error");
+  pane.classList.toggle("success", level === "success");
+  pane.textContent = message;
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForReceipt(id, label) {
+  const createdAt = Date.now();
+  while (Date.now() - createdAt < 56000) {
+    await delay(1800);
+    let result;
+    try { result = await api("/api/commands/" + encodeURIComponent(id)); }
+    catch (err) { feedback(label + ": receipt unavailable (" + err.message + ").", "error"); return; }
+    const state = result?.status;
+    if (!CONTROL_STATUS.has(state)) {
+      feedback(label + ": unexpected receipt status.", "error");
+      return;
+    }
+    if (state === "succeeded") {
+      feedback(label + ": confirmed by Ubuntu.", "success");
+      await refreshStatus();
+      return;
+    }
+    if (state === "failed" || state === "expired") {
+      feedback(label + ": " + (state === "failed" ? "execution failed." : "request expired without confirmation."), "error");
+      return;
+    }
+    feedback(label + ": " + (state === "queued" ? "waiting for Ubuntu…" : "delivered, awaiting execution result…"));
+  }
+  feedback(label + ": no confirmed result. Check Ubuntu before trying again.", "error");
+}
+
+async function submitCommand(action, value, label, confirmed = false) {
+  if (!commandAuthorizedAndReady()) {
+    feedback("Remote controls are locked or Ubuntu is unavailable.", "error");
+    return;
+  }
+  app.commandBusy = true;
+  syncControls();
+  feedback(label + ": requesting authorization…");
+  try {
+    if (!app.session) app.session = await api("/api/session");
+    const payload = {action, value};
+    if (action === "cpuwm.set_profile") payload.confirm = confirmed;
+    const response = await api("/api/commands", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "X-UC-CSRF": app.session.csrf},
+      body: JSON.stringify(payload),
+    });
+    if (typeof response?.id !== "string" || response.status !== "queued") {
+      throw new Error("The Hub did not return a queued receipt.");
+    }
+    feedback(label + ": queued on Raspberry Pi; not executed yet.");
+    await waitForReceipt(response.id, label);
+  } catch (err) {
+    feedback(label + ": " + (err?.message || "request failed."), "error");
+  } finally {
+    app.commandBusy = false;
+    syncControls();
+  }
+}
+
+function initCommandControls() {
+  el("volume-slider").addEventListener("input", () => {
+    put("control-volume", el("volume-slider").value + "% · not applied");
+  });
+  el("apply-volume").addEventListener("click", () => {
+    const value = Number(el("volume-slider").value);
+    if (!Number.isInteger(value) || value < 0 || value > 100) return;
+    void submitCommand("audio.set_volume", value, "Ubuntu volume " + value + "%");
+  });
+  el("mute-toggle").addEventListener("click", () => {
+    const audio = app.lastStatus?.desktop?.metrics?.audio;
+    if (!audio || !audio.available) return;
+    const mute = !Boolean(audio.muted);
+    void submitCommand("audio.set_mute", mute, mute ? "Mute Ubuntu audio" : "Unmute Ubuntu audio");
+  });
+  el("apply-profile").addEventListener("click", () => {
+    const profile = el("profile-selector").value;
+    if (!["quiet", "balanced", "performance"].includes(profile)) return;
+    if (!window.confirm("Change CPU & GPU Workload Manager to " + profile +
+      "? This may affect running workloads and the thermal/resource budget.")) return;
+    void submitCommand("cpuwm.set_profile", profile, "CPUWM " + profile, true);
+  });
+}
+
 
 document.addEventListener("DOMContentLoaded", init);

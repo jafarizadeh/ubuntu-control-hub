@@ -15,6 +15,10 @@ Never commit:
 
 The provided config/devices.example.json contains non-routable documentation addresses and placeholder MAC values. Keep device-local files restricted to the intended Unix user, typically permissions 0600.
 
+## Operator authorization
+
+The command endpoints additionally enforce the authenticated Tailscale Serve identity header against a private, owner-only local allowlist (config/operator.json, mode 0600), as well as same-origin CSRF protection. Ordinary telemetry never requires control authorization, and the private command database is excluded from Git. See docs/COMMANDS.md for all constraints.
+
 ## Commands and operations
 - Implement only explicitly allowlisted commands and parameters.
 - Authenticate read-only reports with Ed25519 signatures over private Tailscale HTTPS. The Ubuntu private key never leaves the desktop; the Pi stores only its public verification key.

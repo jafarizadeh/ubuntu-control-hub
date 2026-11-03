@@ -10,7 +10,7 @@ Ubuntu reports status to the always-on Raspberry Pi hub over **outbound private 
 4. The Pi marks the agent online for 35 seconds after the most recent successful report.
 5. The PWA displays fresh metrics, and hides them if the agent is unavailable.
 
-The sender accepts no incoming network connections and cannot execute received commands.
+The sender accepts no incoming network connections. It can execute only the narrow, authenticated command allowlist described in [COMMANDS.md](COMMANDS.md).
 
 ## Setup
 
@@ -48,4 +48,4 @@ For startup without an interactive login, an administrator may use:
 - POST to agent endpoint without a valid signature returns HTTP 403.
 - Never enable Tailscale Funnel.
 
-This release is telemetry-only. Shutdown, restart, timers and other privileged features require separate authorization and safety measures.
+Audio and confirmed CPUWM profiles use the outbound command channel; see [COMMANDS.md](COMMANDS.md) for private operator setup, delivery guarantees and state files. Shutdown, restart, timers and other power actions remain locked out of that channel.

@@ -82,5 +82,20 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn("CPU & GPU Workload Manager", html)
 
 
+    def test_remote_commands_require_capabilities_and_leave_power_locked(self):
+        html = (ROOT / "web/static/index.html").read_text()
+        js = (ROOT / "web/static/app.js").read_text()
+        self.assertIn('id="control-access"', html)
+        self.assertIn('id="command-feedback"', html)
+        self.assertIn('id="apply-volume" type="button" disabled', html)
+        self.assertIn('id="apply-profile" type="button" disabled', html)
+        self.assertIn('id="desktop-off" disabled', html)
+        self.assertIn('/api/control/capabilities', js)
+        self.assertIn('/api/commands', js)
+        self.assertIn('commandAuthorizedAndReady()', js)
+        self.assertIn('cpuwm.set_profile', js)
+        self.assertIn('window.confirm(', js)
+
+
 if __name__ == "__main__":
     unittest.main()

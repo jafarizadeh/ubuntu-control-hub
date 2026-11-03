@@ -35,3 +35,11 @@ id_rsa*
 .idea/
 *.local
 *.bak
+
+# Command authorization and durable private transport state
+/config/operator.json
+/config/command-state.sqlite*
+/agent/command-state.json
+**/.command-state-*
+**/command-state.json
+**/command-state.json.lock

@@ -12,20 +12,22 @@ import stat
 import threading
 import time
 
+from command_queue import CommandQueue
+
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 
 class AgentBroker:
-    def __init__(self, public_key_file: pathlib.Path, offline_after: int = 35):
+    def __init__(self, public_key_file: pathlib.Path, offline_after: int = 35, state_file=None):
+        self.commands = CommandQueue(state_file or public_key_file.parent / "command-state.sqlite")
         self.public_key_file = public_key_file
         self.offline_after = offline_after
         self._lock = threading.RLock()
         self._last_monotonic = 0.0
         self._last_epoch = 0
         self._report = None
-        self._seen_nonces: dict[str, float] = {}
 
     def configured(self) -> bool:
         try:
@@ -61,13 +63,7 @@ class AgentBroker:
             key.verify(signature, signed)
         except (OSError, ValueError, TypeError, binascii.Error, InvalidSignature):
             return False
-        with self._lock:
-            # Prevent an old signed request being replayed within the time window.
-            self._seen_nonces = {k: t for k, t in self._seen_nonces.items() if now - t < 150}
-            if nonce in self._seen_nonces:
-                return False
-            self._seen_nonces[nonce] = now
-        return True
+        return self.commands.remember_nonce(nonce, now)
 
     def accept(self, raw: bytes) -> bool:
         if not 0 < len(raw) <= 16384:
@@ -88,6 +84,11 @@ class AgentBroker:
         if not isinstance(report.get("gpus", []), list) or len(report.get("gpus", [])) > 8:
             return False
         if not isinstance(report.get("fans", []), list) or len(report.get("fans", [])) > 32:
+            return False
+        ack = message.get("ack")
+        if ack is not None and (not isinstance(ack, dict) or set(ack) != {"id", "status"}
+                or not isinstance(ack.get("id"), str) or not re.fullmatch(r"[a-f0-9]{32}", ack["id"])
+                or ack.get("status") not in ("succeeded", "failed")):
             return False
         snapshot = json.loads(json.dumps(report))
         with self._lock:

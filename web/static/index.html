@@ -124,14 +124,18 @@
 
       <section class="view" id="view-control" hidden aria-label="Ubuntu control panel">
         <div class="page-heading"><div><div class="eyebrow">REMOTE MANAGEMENT</div><h1>Control Center</h1><p>Ubuntu settings and operations, with explicit capability status</p></div></div>
-        <div class="control-section-head"><h2>System controls</h2><span class="section-helper">Only connected actions can be used</span></div>
+        <div class="control-section-head"><h2>System controls</h2><span class="section-helper" id="control-access">Checking operator access…</span></div>
+        <div class="command-feedback" id="command-feedback" role="status" aria-live="polite" hidden></div>
         <div class="control-grid">
           <article class="control-card panel">
             <div class="control-card-header"><div class="control-icon">♫</div><div><h3>Sound</h3><p>Ubuntu audio output</p></div><span class="feature-state" id="audio-capability">Read only</span></div>
             <div class="setting-line"><span>Output volume</span><strong id="control-volume">—</strong></div>
             <input id="volume-slider" type="range" min="0" max="100" value="0" disabled aria-label="Ubuntu volume" title="Audio control channel is not configured">
-            <div class="inline-actions"><button class="btn btn-outline" id="mute-toggle" type="button" disabled>Mute / Unmute</button></div>
-            <p class="control-note">Current volume is live. Remote audio changes require the authenticated command channel.</p>
+            <div class="inline-actions">
+              <button class="btn btn-outline" id="mute-toggle" type="button" disabled>Mute / Unmute</button>
+              <button class="btn btn-primary" id="apply-volume" type="button" disabled>Apply volume</button>
+            </div>
+            <p class="control-note">Changes are available only to the verified Tailnet owner. Every request is tracked until Ubuntu confirms the result.</p>
           </article>
           <article class="control-card panel">
             <div class="control-card-header"><div class="control-icon">⌁</div><div><h3>Network</h3><p>Ethernet, Wi-Fi and connectivity</p></div><span class="feature-state" id="network-capability">Read only</span></div>
@@ -146,7 +150,7 @@
             <label class="field-label" for="profile-selector">Target profile</label>
             <select id="profile-selector" disabled><option value="quiet">Quiet</option><option value="balanced" selected>Balanced</option><option value="performance">Performance</option></select>
             <button class="btn btn-outline btn-wide" id="apply-profile" type="button" disabled>Apply profile</button>
-            <p class="control-note">Profiles are read from the real Workload Manager. Changing resource allocation will require a protected, confirmed command.</p>
+            <p class="control-note">Changes are made through the existing CPU &amp; GPU Workload Manager and may affect active computing jobs. Each change requires confirmation.</p>
           </article>
           <article class="control-card panel">
             <div class="control-card-header"><div class="control-icon">▤</div><div><h3>Applications & files</h3><p>Running applications and open documents</p></div><span class="feature-state">Planned</span></div>

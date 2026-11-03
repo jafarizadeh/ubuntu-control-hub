@@ -20,9 +20,9 @@ Actions:
 
 ## Control Center
 
-Sound shows live PipeWire volume and mute state. Internet/Network lists NetworkManager Ethernet and Wi-Fi connections. Performance shows the current profile from the existing CPU & GPU Workload Manager. Applications and Files and Terminal/GPT Remote are visible planning categories, not live controls. LG webOS pairing, volume, mute and standby are connected to the existing Pi routes once paired.
+Sound shows live PipeWire volume and mute state and supports explicit remote volume/mute after verified owner authorization. Internet/Network lists NetworkManager Ethernet and Wi-Fi connections. Performance shows the current profile from the existing CPU & GPU Workload Manager and can request an explicitly confirmed profile change. All remote actions are queued through the private Hub and show actual agent receipts. Applications and Files and Terminal/GPT Remote remain visible planning categories, not live controls. LG webOS pairing, volume, mute and standby are connected to the existing Pi routes once paired.
 
-The real Workload Manager supports the three profiles quiet, balanced and performance. Applying profiles from the phone should use its existing manager CLI only after an authenticated, narrowly allowlisted control path has been reviewed. Changes could affect scientific jobs, so require confirmation and preserve thermal ceilings.
+The real Workload Manager supports the three profiles quiet, balanced and performance. Requests from the phone use an authenticated, narrowly allowlisted outbound control path, with explicit user confirmation and agent execution receipts. Changes could affect scientific jobs, so require confirmation and preserve thermal ceilings.
 
 Network disconnection must have recovery safeguards. Closing applications must allow selection and warn about unsaved data. The phone dashboard should not expose arbitrary shell command execution.
 

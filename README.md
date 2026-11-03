@@ -2,7 +2,7 @@
 
 A private English-language, light-themed, left-to-right PWA for remotely managing Ubuntu Desktop and LG webOS TV through an always-on Raspberry Pi.
 
-**MVP status (v0.3 UI):** The Raspberry Pi hub runs privately over Tailscale HTTPS. The default Dashboard is **Ubuntu-first**: live signed Ubuntu CPU/GPU/RAM/disk/temperature/fan/uptime telemetry, two power cards for Ubuntu and LG, and locally customizable metric tiles. The Control tab shows actual Ubuntu audio/network/CPUWM status and clearly marks unimplemented remote controls as disabled. Wake-on-LAN and LG webOS controls (once paired) are already connected. Ubuntu shutdown/restart, volume changes, CPUWM profile changes and desktop-terminal operations require a future authenticated command channel.
+**MVP status (v0.3 UI):** The Raspberry Pi hub runs privately over Tailscale HTTPS. The default Dashboard is **Ubuntu-first**: live signed Ubuntu CPU/GPU/RAM/disk/temperature/fan/uptime telemetry, two power cards for Ubuntu and LG, and locally customizable metric tiles. The Control tab shows actual Ubuntu audio/network/CPUWM status and clearly marks unimplemented remote controls as disabled. Wake-on-LAN and LG webOS controls (once paired) are already connected. Volume/Mute and confirmed CPUWM profile changes are available through an opt-in, verified Tailnet-owner command channel (see docs/COMMANDS.md). Ubuntu shutdown/restart/timers and terminal operations remain disabled pending a separate safety-focused design.
 
 ## Architecture
 
@@ -25,7 +25,7 @@ The backend is Python, and the frontend is static HTML/CSS/JavaScript with no bu
 - agent/outbound.py: outgoing HTTPS-only sender to the private Raspberry Pi hub.
 - config/devices.example.json: fictional sample addresses only.
 - deploy/: sample systemd unit.
-- docs/: dashboard/control specification, roadmap, operations, security and development workflow.
+- docs/: dashboard/control specification, authenticated command protocol, roadmap, operations, security and development workflow.
 - tests/: safe, non-destructive repository and desktop-agent tests.
 
 ## Local setup (Raspberry Pi OS)
@@ -63,7 +63,7 @@ These checks do not send power or TV commands.
 
 ## Project policy
 
-Use feature/fix branches and pull requests. Keep user-visible UI and docs in English. Protect the Raspberry Pi service and data when deploying. The active Raspberry Pi installation runs from a separate release directory and is not auto-deployed from GitHub; see docs/OPERATIONS.md and docs/ROADMAP.md. The desktop status agent uses outbound HTTPS from Ubuntu to the Raspberry Pi; see docs/OUTBOUND_AGENT.md. No inbound SSH daemon is necessary.
+Use feature/fix branches and pull requests. Command authorization is configured exclusively in the Pi-local, ignored config/operator.json; see docs/COMMANDS.md. Keep user-visible UI and docs in English. Protect the Raspberry Pi service and data when deploying. The active Raspberry Pi installation runs from a separate release directory and is not auto-deployed from GitHub; see docs/OPERATIONS.md and docs/ROADMAP.md. The desktop status agent uses outbound HTTPS from Ubuntu to the Raspberry Pi; see docs/OUTBOUND_AGENT.md. No inbound SSH daemon is necessary.
 
 ## Confidentiality
 

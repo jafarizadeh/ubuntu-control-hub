@@ -29,7 +29,8 @@ EVENTS = ROOT / "data" / "history.jsonl"
 COMMAND = ROOT / ".venv" / "bin" / "bscpylgtvcommand"
 TV_DATABASE = CONFIG / ".aiopylgtv.sqlite"
 STATUS_COMMAND = ROOT / "bin" / "status.py"
-BROKER = AgentBroker(CONFIG / "desktop_agent.pub")
+BROKER = AgentBroker(CONFIG / "desktop_agent.pub", state_file=ROOT / "data" / "command-state.sqlite")
+OPERATOR = CONFIG / "operator.json"
 WOL_COMMAND = ROOT / "bin" / "wake.py"
 DEVICE_INFO = json.loads((CONFIG / "devices.json").read_text())
 COOKIE = "uc_hub"
@@ -62,7 +63,7 @@ def status():
         report = json.loads(r.stdout)
         report["tv"]["paired"] = paired()
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "0.2.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "0.3.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -119,8 +120,33 @@ def check_origin(host, origin):
         return False
 
 
+def can_control(headers):
+    # Loopback is the Serve backend, never an authorized browser origin.
+    host = headers.get("Host", "").split(":", 1)[0].lower()
+    if not host.endswith(".ts.net"):
+        return False
+    values = headers.get_all("Tailscale-User-Login", [])
+    if len(values) != 1:
+        return False
+    try:
+        if OPERATOR.is_symlink():
+            return False
+        import os
+        import stat
+        info = OPERATOR.stat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                or stat.S_IMODE(info.st_mode) != 0o600):
+            return False
+        cfg = json.loads(OPERATOR.read_text(encoding="utf-8"))
+        expected = cfg.get("allowed_login")
+        return (isinstance(expected, str) and bool(expected)
+                and hmac.compare_digest(values[0].encode(), expected.encode()))
+    except (OSError, ValueError, AttributeError, TypeError):
+        return False
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/0.1"
+    server_version = "UbuntuControl/0.3"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -175,11 +201,21 @@ class Handler(BaseHTTPRequestHandler):
         if not self._host_ok():
             return self._json({"error": "Host not allowed"}, 403)
         path = urlsplit(self.path).path
+        if path == "/api/control/capabilities":
+            return self._json({"can_control": can_control(self.headers)})
+        if path.startswith("/api/commands/"):
+            if not can_control(self.headers):
+                return self._json({"error": "Control denied"}, 403)
+            try:
+                state = BROKER.commands.status(path.removeprefix("/api/commands/"))
+            except sqlite3.Error:
+                return self._json({"error": "Command state unavailable"}, 503)
+            return self._json({"status": state}, 200 if state else 404)
         if path == "/api/session":
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "0.2", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "0.3", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -221,9 +257,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "Unauthorized agent"}, 403)
                 if not BROKER.accept(raw):
                     return self._json({"error": "Invalid agent report"}, 400)
-            except (ValueError, OSError):
-                return self._json({"error": "Invalid agent report"}, 400)
-            return self._json({"ok": True})
+                result = BROKER.commands.report_response(json.loads(raw).get("ack"))
+            except (ValueError, OSError, sqlite3.Error):
+                return self._json({"error": "Agent report unavailable"}, 503)
+            return self._json(result)
+        if path == "/api/commands" and not can_control(self.headers):
+            return self._json({"error": "Control denied"}, 403)
         origin = self.headers.get("Origin", "")
         if not check_origin(self.headers.get("Host", ""), origin):
             return self._json({"error": "Invalid request origin"}, 403)
@@ -243,6 +282,15 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             return self._json({"error": "Invalid JSON"}, 400)
         path = urlsplit(self.path).path
+        if path == "/api/commands":
+            try:
+                return self._json(BROKER.commands.enqueue(request), 202)
+            except ValueError:
+                return self._json({"error": "Command not allowed"}, 400)
+            except OverflowError:
+                return self._json({"error": "Command queue full"}, 429)
+            except (OSError, sqlite3.Error):
+                return self._json({"error": "Command queue unavailable"}, 503)
         if path == "/api/wake":
             target = request.get("target")
             if target not in {"desktop", "tv"}:
@@ -312,7 +360,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v0.1 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v0.3 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 

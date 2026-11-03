@@ -24,7 +24,8 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] Implement signed outbound HTTPS telemetry with a private Ed25519 key on Ubuntu and public verification key on Pi.
 - [x] Deploy and verify the outbound agent on Ubuntu and Raspberry Pi.
 - [x] Read-only Ubuntu audio, NetworkManager connectivity, and CPUWM current profile detected.
-- [ ] Authenticated, least-privilege, allowlisted command agent.
+- [x] Authenticated, allowlisted outbound command channel for Ubuntu Volume/Mute and CPUWM profile.
+- [ ] Verify command authorization and actions on real iPhone Safari end-to-end.
 - [x] Live CPU, GPU, RAM, disk, temperature, fans and uptime telemetry.
 - [ ] Advanced per-interface network telemetry.
 - [ ] Protected shutdown and restart with explicit confirmation.
@@ -59,4 +60,4 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 ## Approval gate
 No real system shutdown, restart, package update, fan override or disruptive job action without explicit approval, preflight checks and a rollback plan. Test dry-runs before enabling new controls.
 
-Next focus: authenticated command channel with narrowly allowed audio actions, CPUWM profile management with safeguards, shutdown protections, LG pairing, then app/terminal operations and automation.
+Next focus: verify sound and CPUWM command receipts from iPhone, then design safe shutdown/restart/timers with active-work checks, LG pairing, app/terminal operations, and automation.

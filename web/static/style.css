@@ -170,3 +170,6 @@ select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:1
   .brand-name{font-size:15px}.connection{font-size:9px}.overview-stat{padding:0 8px}.overview-stat strong{font-size:21px}
   .page-heading p{max-width:230px}
 }
+.command-feedback{margin-bottom:16px;padding:13px 16px;border-radius:11px;border:1px solid #dbe7e9;background:#eff8f7;color:#356871;font-size:12px;line-height:1.6}
+.command-feedback.error{background:#fff0ef;color:#a43e49;border-color:#f1dbd9}
+.command-feedback.success{background:#e8f7ee;color:#267c5b;border-color:#d3eadd}

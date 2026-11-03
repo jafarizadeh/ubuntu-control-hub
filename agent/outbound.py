@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from desktop_status import collect_status
+from command_executor import CommandExecutor
 
 DEFAULT_CONFIG = Path.home() / ".config" / "ubuntu-control-agent" / "client.json"
 
@@ -55,8 +56,11 @@ def load_config(path: Path) -> tuple[str, Ed25519PrivateKey, int]:
     return base, identity, interval
 
 
-def make_request(base: str, identity: Ed25519PrivateKey, status: dict) -> request.Request:
-    body = json.dumps({"schema_version": 1, "status": status},
+def make_request(base: str, identity: Ed25519PrivateKey, status: dict, ack=None) -> request.Request:
+    message = {"schema_version": 1, "status": status}
+    if ack is not None:
+        message["ack"] = ack
+    body = json.dumps(message,
                       separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     if not 0 < len(body) <= 16384:
         raise ValueError("Report exceeds size limit")
@@ -79,15 +83,19 @@ def make_request(base: str, identity: Ed25519PrivateKey, status: dict) -> reques
     )
 
 
-def report_once(base: str, identity: Ed25519PrivateKey, *, payload: dict | None = None) -> dict:
+def report_once(base: str, identity: Ed25519PrivateKey, *, payload: dict | None = None, executor=None) -> dict:
     status = payload if payload is not None else collect_status()
-    req = make_request(base, identity, status)
+    req = make_request(base, identity, status, executor.ack if executor else None)
     with request.urlopen(req, timeout=8, context=ssl.create_default_context()) as response:
         if response.status != 200:
             raise RuntimeError("Hub rejected status report")
-        result = json.loads(response.read(1024))
-    if result.get("ok") is not True:
+        result = json.loads(response.read(4097))
+    if not isinstance(result, dict) or result.get("ok") is not True:
         raise RuntimeError("Hub did not acknowledge report")
+    if executor is not None:
+        executor.acknowledged()
+        if "command" in result:
+            executor.execute(result["command"])
     return result
 
 
@@ -98,13 +106,14 @@ def main() -> int:
     args = parser.parse_args()
     try:
         base, identity, interval = load_config(args.config)
+        executor = CommandExecutor(args.config.parent / "command-state.json")
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         print("Invalid agent configuration: " + type(exc).__name__, file=sys.stderr)
         return 2
 
     if args.once:
         try:
-            report_once(base, identity)
+            report_once(base, identity, executor=executor)
             print("Ubuntu Control signed status report accepted")
             return 0
         except (OSError, ValueError, RuntimeError, error.URLError,
@@ -116,7 +125,7 @@ def main() -> int:
     failures = 0
     while True:
         try:
-            report_once(base, identity)
+            report_once(base, identity, executor=executor)
             failures = 0
         except (OSError, ValueError, RuntimeError, error.URLError,
                 json.JSONDecodeError) as exc:
