@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f8fb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Ubuntu Control">
+  <meta name="description" content="Securely manage Ubuntu, Raspberry Pi, and LG TV over a private network">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="stylesheet" href="/style.css">
+  <title>Ubuntu Control</title>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="4"/><path d="M8 9.5l2.5 2.5L8 14.5M13 15h3"/></svg>
+        </div>
+        <div><strong class="brand-name">Ubuntu Control</strong><div class="brand-sub">Private device control hub</div></div>
+      </div>
+      <div class="header-meta">
+        <span class="connection" id="hub-state"><span class="dot"></span><span id="hub-label">Checking…</span></span>
+        <button class="icon-button" id="refresh-btn" title="Refresh" aria-label="Refresh status">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.5 6"/><path d="M20 4v7h-7"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="app-layout">
+      <nav class="nav" aria-label="App navigation">
+        <div class="nav-label">WORKSPACE</div>
+        <button class="nav-item selected" type="button" data-tab="dashboard"><span class="nav-ico">◫</span> Dashboard</button>
+        <button class="nav-item" type="button" data-tab="control"><span class="nav-ico">⏻</span> Control</button>
+        <button class="nav-item" type="button" data-tab="history"><span class="nav-ico">◷</span> History</button>
+        <div class="sidebar-bottom">
+          <div class="side-note">Private access via Tailscale</div>
+          <div class="side-version">Hub v0.1</div>
+        </div>
+      </nav>
+
+      <main>
+        <section class="view" id="view-dashboard" aria-label="Dashboard">
+          <div class="heading">
+            <div><div class="eyebrow">CONTROL CENTER</div><h1>System Overview</h1><p>Raspberry Pi, Ubuntu Desktop, and LG TV at a glance</p></div>
+            <div id="updated-at" class="updated-at">—</div>
+          </div>
+
+          <div class="hero panel">
+            <div class="hero-top">
+              <div class="device-emblem pi-emblem">RP</div>
+              <div class="hero-title"><div class="hero-kicker">HUB · RASPBERRY PI 5</div><h2>Control Hub</h2><p id="pi-sub">Loading system information…</p></div>
+              <span class="state-tag online" id="pi-state">Online</span>
+            </div>
+            <div class="hero-stats">
+              <div class="metric"><span class="metric-label">CPU Temperature</span><strong id="pi-temperature">—</strong><span class="metric-unit">°C</span></div>
+              <div class="metric"><span class="metric-label">Available RAM</span><strong id="pi-memory">—</strong><span class="metric-unit">MiB</span></div>
+              <div class="metric"><span class="metric-label">Storage</span><strong id="pi-disk">—</strong><span class="metric-unit">GiB free</span></div>
+              <div class="metric"><span class="metric-label">Uptime</span><strong id="pi-uptime">—</strong><span class="metric-unit">Since last boot</span></div>
+            </div>
+            <div class="hero-bottom"><span><span class="mini-dot"></span> Ethernet: <b dir="ltr" id="pi-ethernet-ip">—</b></span><span>Tailscale: <b id="ts-state">—</b></span></div>
+          </div>
+
+          <div class="section-heading"><h2>Devices</h2><span>All your devices in one place</span></div>
+          <div class="device-grid">
+            <article class="device-card panel">
+              <div class="device-head"><div class="device-symbol desktop-symbol"><svg width="27" height="27" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg></div><span class="state-tag" id="desktop-state">Checking…</span></div>
+              <h3>Ubuntu Desktop</h3><p>Workstation · Ethernet</p><div class="meta-line"><span>IP</span><strong dir="ltr" id="desktop-ip">—</strong></div>
+              <div class="device-footer"><button type="button" class="btn btn-primary" data-action="wake-desktop">⏻ <span>Wake</span></button><span class="hint">Wake-on-LAN</span></div>
+            </article>
+            <article class="device-card panel">
+              <div class="device-head"><div class="device-symbol tv-symbol"><svg width="27" height="27" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.7" stroke-linecap="round"><rect x="2.5" y="4.5" width="19" height="14" rx="2.5"/><path d="M8 21h8"/></svg></div><span class="state-tag" id="tv-state">Checking…</span></div>
+              <h3>LG OLED C1</h3><p id="tv-model">webOS · Wi-Fi</p><div class="meta-line"><span>IP</span><strong dir="ltr" id="tv-ip">—</strong></div>
+              <div class="device-footer"><button type="button" class="btn btn-primary" data-action="wake-tv">⏻ <span>Wake</span></button><span class="hint" id="tv-pairing">Checking…</span></div>
+            </article>
+          </div>
+          <div class="footnote">Reachable means the device responds over the network; it does not necessarily mean the TV screen is on.</div>
+        </section>
+
+        <section class="view" id="view-control" hidden aria-label="Control">
+          <div class="heading"><div><div class="eyebrow">REMOTE CONTROL</div><h1>Device Control</h1><p>Approved commands only, with no public internet exposure.</p></div></div>
+          <div class="control-grid">
+            <article class="panel control-card">
+              <div class="control-head"><span class="control-icon">⏻</span><div><h2>Ubuntu Desktop</h2><p>Wake the workstation over Ethernet</p></div></div>
+              <button type="button" class="btn btn-primary btn-wide" data-action="wake-desktop">Send wake command</button>
+              <div class="control-tip">A Wake-on-LAN packet will be sent. Actual power-on also depends on BIOS settings.</div>
+              <div class="coming-soon">Safe shutdown, restart, and scheduling will be available after the desktop agent is connected.</div>
+            </article>
+            <article class="panel control-card">
+              <div class="control-head"><span class="control-icon">▣</span><div><h2>LG webOS</h2><p>Control via Wi-Fi using the TV's webOS API</p></div></div>
+              <button type="button" class="btn btn-primary btn-wide" data-action="wake-tv">Send wake command</button>
+              <div class="control-tip" id="tv-controls-message">Volume and standby controls become available after pairing.</div>
+              <button type="button" class="btn btn-outline btn-wide" data-action="pair-tv" id="pair-tv-btn">Pair LG TV with Raspberry Pi</button>
+              <div class="remote-controls" id="tv-remote-controls" hidden>
+                <div class="remote-label">Volume Control</div>
+                <div class="remote-row">
+                  <button type="button" class="btn btn-outline" data-action="tv-volume-down">−</button>
+                  <button type="button" class="btn btn-outline" data-action="tv-mute">Mute</button>
+                  <button type="button" class="btn btn-outline" data-action="tv-unmute">Unmute</button>
+                  <button type="button" class="btn btn-outline" data-action="tv-volume-up">+</button>
+                </div>
+                <button type="button" class="btn btn-danger btn-wide" data-action="tv-power-off">Put TV in standby</button>
+              </div>
+            </article>
+          </div>
+          <div class="security-info"><span>⌑</span><div><strong>Private Access</strong><p>The hub listens only on the Raspberry Pi's localhost interface. Phone access is available privately through Tailscale Serve.</p></div></div>
+        </section>
+
+        <section class="view" id="view-history" hidden aria-label="History">
+          <div class="heading"><div><div class="eyebrow">ACTIVITY LOG</div><h1>Command History</h1><p>Actions recorded locally since Ubuntu Control was enabled.</p></div></div>
+          <div class="panel events-panel"><div class="events-heading"><strong>Recent Events</strong><button class="text-button" type="button" id="reload-history">Refresh</button></div><div id="events-list" class="events-list"><p class="empty">No commands have been sent from the app yet.</p></div></div>
+        </section>
+      </main>
+    </div>
+    <nav class="bottom-nav" aria-label="Navigation">
+      <button class="bottom-item selected" type="button" data-tab="dashboard"><span>◫</span>Dashboard</button>
+      <button class="bottom-item" type="button" data-tab="control"><span>⏻</span>Control</button>
+      <button class="bottom-item" type="button" data-tab="history"><span>◷</span>History</button>
+    </nav>
+  </div>
+  <div role="status" class="toast" id="toast" aria-live="polite"></div>
+</body>
+</html>

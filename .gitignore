@@ -1,0 +1,35 @@
+# Private device configuration, pairing and history
+/config/devices.json
+/config/*.sqlite
+/config/*.db
+/config/*.key
+/config/*.pem
+/data/
+/logs/
+/backups/
+*.sqlite
+*.sqlite3
+*.log
+
+# Python, local tools and build products
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets, keys, editor files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+.DS_Store
+.vscode/
+.idea/
+*.local
+*.bak

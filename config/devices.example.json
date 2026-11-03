@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "controller": {
+    "name": "Raspberry Pi",
+    "hostname": "rpi",
+    "ethernet_ip": "192.0.2.10",
+    "wifi_ip": "192.0.2.11",
+    "primary_interface": "eth0",
+    "broadcast_ip": "192.0.2.255"
+  },
+  "desktop": {
+    "name": "Ubuntu Desktop",
+    "ip": "192.0.2.20",
+    "mac": "02:00:00:00:00:20",
+    "wake_method": "ethernet"
+  },
+  "tv": {
+    "name": "LG webOS TV",
+    "model": "YOUR_MODEL",
+    "ip": "192.0.2.30",
+    "mac": "02:00:00:00:00:30",
+    "control_port": 3000,
+    "secure_control_port": 3001,
+    "wake_method": "wifi"
+  }
+}

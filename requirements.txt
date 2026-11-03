@@ -1,0 +1,4 @@
+# Runtime versions observed on Raspberry Pi in November 2026.
+bscpylgtv==0.5.5
+sqlitedict==2.1.0
+websockets==17.4
