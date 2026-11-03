@@ -193,6 +193,9 @@ class AtlasPowerSafetyIntegrationTests(unittest.TestCase):
 
     def test_pi_never_exposes_claimed_unverified_worker_ack(self):
         valid=atlas_guard.classify_snapshot("RUN",None,0,0,0,0)
+        valid["codex_stop"]={"status":"unsupported","expected_workers":None,
+                             "acknowledged_workers":0,"dispatch_frozen":False,
+                             "evidence_age_seconds":None}
         valid["private_path"]="/secret/data"
         result=server.safe_atlas_control_summary(valid)
         self.assertEqual(result["status"],"armed_idle")

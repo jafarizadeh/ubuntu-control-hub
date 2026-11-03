@@ -825,6 +825,8 @@ function clearPowerPreview() {
   put("guard-atlas-dispatch", "Unknown");
   put("guard-atlas-attempts", "Unknown");
   put("guard-codex-stop", "Not verified");
+  put("guard-stop-acks", "—");
+  put("guard-stop-barrier", "Not verified");
   put("guard-cpuwm", "Unknown");
   put("guard-desktop", "Unverified");
   el("power-safety-details").replaceChildren();
@@ -842,6 +844,7 @@ function paintPowerPreview(data) {
   const cpuwm = safety.cpuwm || {};
   const desktopWork = safety.desktop_work || {};
   const atlasControl = safety.atlas_control || {};
+  const stop = atlasControl.codex_stop || {};
   put("guard-atlas", safety.atlas_state === "active" ? "Active" :
     safety.atlas_state === "inactive" ? "Inactive" : "Unknown");
   const atlasLabels = {
@@ -852,11 +855,31 @@ function paintPowerPreview(data) {
     owner_stop_no_active_attempts: "Owner STOP · no active attempts",
     unavailable: "Unknown",
   };
-  put("guard-atlas-dispatch", atlasLabels[atlasControl.status] || "Unknown");
+  const verifiedStop = atlasControl.codex_user_stop_verified === true
+    && atlasControl.atlas_power_gate_clear === true && stop.status === "verified";
+  put("guard-atlas-dispatch", verifiedStop && atlasControl.scheduler_mode === "RUN"
+    ? "RUN · Codex dispatch frozen"
+    : (atlasLabels[atlasControl.status] || "Unknown"));
   put("guard-atlas-attempts", Number.isInteger(atlasControl.inflight_attempts)
     ? fmt(atlasControl.inflight_attempts, 0) + " active" : "Unknown");
-  put("guard-codex-stop", atlasControl.codex_user_stop_verified === true
-    ? "Verified user stop" : "Not verified");
+  const stopLabels = {
+    unsupported: "Awaiting Atlas support",
+    not_requested: "Not requested",
+    draining: "Waiting for workers",
+    stale: "Expired · recheck",
+    resumed: "Codex resumed",
+    invalid: "Invalid proof",
+    unavailable: "Unavailable",
+    verified: "Verified owner stop",
+  };
+  put("guard-codex-stop", verifiedStop
+    ? "Verified owner stop" : (stopLabels[stop.status] || "Not verified"));
+  put("guard-stop-acks", Number.isInteger(stop.expected_workers)
+    ? (Number.isInteger(stop.acknowledged_workers) ? stop.acknowledged_workers : 0)
+      + " / " + stop.expected_workers + " workers"
+    : "—");
+  put("guard-stop-barrier", stop.dispatch_frozen === true
+    ? "Owner stop barrier active" : "Not verified");
   put("guard-cpuwm", cpuwm.status === "fresh" && Number.isInteger(cpuwm.managed_scopes)
     ? fmt(cpuwm.managed_scopes, 0) + " extra" : "Unknown");
   put("guard-desktop", desktopWork.status === "unverifiable" ?

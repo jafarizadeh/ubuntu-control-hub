@@ -192,6 +192,5 @@ physical Codex worker is drained. No shutdown permission is inferred from
 empty queues, inactivity, quota exhaustion, or the Atlas service being
 inactive. The scheduler in RUN mode may start work at any moment.
 
-See docs/ATLAS_POWER_POLICY.md for the exact source, stop provenance, current
-strictly false Codex stop flag, and future verification contract. No remote
+See docs/ATLAS_POWER_POLICY.md and docs/ATLAS_CODEX_STOP_BRIDGE.md for the exact source, stop provenance, already implemented read-only consumer, and pending producer contract. No remote
 shutdown or restart is enabled by this update.

@@ -32,9 +32,9 @@ It returns sanitized status enums and counts, with no IDs, owner identity, paths
 
 agent/power_safety.py combines the result with read-only systemd, CPUWM and desktop observations. The existing signed outbound agent transmits it to the private Pi. The Raspberry Pi validates and redacts the result before returning it in the owner-only Power Safety endpoint.
 
-codex_user_stop_verified is strictly false until the new per-Codex control protocol is implemented, and atlas_power_gate_clear and safe_to_request also remain false. User interface fields cannot override these.
+codex_user_stop_verified and atlas_power_gate_clear remain false on the real production Atlas, which has no per-Codex attestation producer yet. The read-only consumer can verify a future 3/3 owner-stop receipt only after independent dispatch-barrier and worker acknowledgements arrive from Atlas. safe_to_request is always false until the separate system-power controls are developed. User interface fields cannot override these. See docs/ATLAS_CODEX_STOP_BRIDGE.md.
 
-## Future Codex stop contract (not implemented)
+## Future Codex stop producer contract (not yet implemented in Atlas)
 
 An explicit authenticated owner request must carry an unambiguous event generation. Atlas should atomically disable new dispatch across all lanes, and each physical Codex, Validator and Auditor worker must report STOPPED/DRAINED and zero active jobs. After checkpoints and session acknowledgements, an attestation can be issued for that generation. Immediately before real shutdown, Ubuntu Control must recheck it. Evidence becomes invalid after any resume, new claim, unknown lane, unexpected restart or staleness.
 

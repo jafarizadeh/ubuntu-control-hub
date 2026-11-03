@@ -14,6 +14,8 @@ import sqlite3
 import stat
 from pathlib import Path
 
+from codex_stop_attestation import ATLAS_POLICY, verify_codex_stop
+
 ATLAS_DB = Path("/var/lib/twt-roadmap-atlas/roadmap.sqlite")
 TERMINAL_ATTEMPT_STATES = ("COMPLETE", "FAILED", "INTERRUPTED", "QUOTA", "STALE")
 VALID_MODES = frozenset(("RUN", "STOP"))
@@ -25,6 +27,9 @@ UNKNOWN = {
     "dispatch_armed": None,
     "owner_stop_verified": False,
     "codex_user_stop_verified": False,
+    "codex_stop": {"status": "unavailable", "expected_workers": None,
+                   "acknowledged_workers": 0, "dispatch_frozen": False,
+                   "evidence_age_seconds": None},
     "inflight_attempts": None,
     "running_packages": None,
     "ready_packages": None,
@@ -96,7 +101,7 @@ def classify_snapshot(mode, event_details, active_attempts, legacy_attempts,
     }
 
 
-def read_atlas_dispatch_state(database: Path = ATLAS_DB) -> dict:
+def read_atlas_dispatch_state(database: Path = ATLAS_DB, *, policy_path: Path = ATLAS_POLICY) -> dict:
     """Short, bounded SQLite snapshot from the existing Atlas database.
 
     The source path and SQL are fixed. No Atlas imports, commands, writes,
@@ -132,9 +137,28 @@ def read_atlas_dispatch_state(database: Path = ATLAS_DB) -> dict:
             ready_packages = conn.execute(
                 "SELECT count(*) FROM packages WHERE state='READY'"
             ).fetchone()[0]
-            return classify_snapshot(
+            summary = classify_snapshot(
                 mode, event[0] if event else None, active_attempts,
                 legacy_attempts, running_packages, ready_packages,
             )
+            if summary["status"] == "unavailable":
+                return summary
+            receipt = verify_codex_stop(
+                conn,
+                mode=mode,
+                in_flight_attempts=summary["inflight_attempts"],
+                running_packages=running_packages,
+                policy_path=policy_path,
+            )
+            verified = receipt["status"] == "verified"
+            return {
+                **summary,
+                "codex_stop": receipt,
+                "codex_user_stop_verified": verified,
+                # This clears only the Atlas-specific gate. It never grants
+                # permission for shutdown: CPUWM, unsaved work, inhibitors
+                # and owner confirmation remain separate.
+                "atlas_power_gate_clear": verified,
+            }
     except (OSError, ValueError, sqlite3.Error, TypeError):
         return dict(UNKNOWN)

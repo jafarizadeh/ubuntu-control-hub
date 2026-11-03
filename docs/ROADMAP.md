@@ -38,7 +38,8 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] Preview-only timer, server remaining-time display, persistence and cancellation (no execution).
 - [x] Read-only power safety: Atlas, shutdown inhibitors and best-effort workload categories; unknown data blocks.
 - [x] Atlas dispatcher-mode guard: distinguishes RUN/idle, owner STOP, owner STOP draining, and unknown STOP; no false shutdown clearance.
-- [ ] Add independently verified owner-stop acknowledgement for each physical Codex/Validator/Auditor worker and all dispatch lanes; do not equate an idle or quota-limited agent with user STOP.
+- [x] Implement read-only verification of the future three-worker Codex stop receipt, roster, barrier and expiry; signed Hub projection and mobile UI are integrated.
+- [ ] Implement the actual authenticated Codex Stop All producer and barrier inside Atlas and obtain independent acknowledgements from every physical worker and dispatch lane. Current Atlas has no producer yet; do not equate idle or quota-limited agents with owner STOP.
 - [x] Bounded read-only CPUWM status with monitor freshness and sanitized counts/enforcement indicators; zero extra scopes never implies idle. Desktop save state remains unverifiable and session blockers are protected.
 - [ ] External session/save acknowledgements and supported CPUWM/Atlas job drain confirmation before any future safe shutdown workflow.
 - [ ] Real timer execution after explicit future approval and activation gates.

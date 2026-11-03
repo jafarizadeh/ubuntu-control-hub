@@ -212,7 +212,9 @@ def collect_power_safety():
     # quota exhaustion or a non-running service. Atlas may dispatch at any
     # moment while the authoritative scheduler mode remains RUN.
     dispatch = atlas_control.get("status", "unavailable")
-    if dispatch in ("running", "armed_idle"):
+    if atlas_control.get("codex_user_stop_verified") is True and atlas_control.get("atlas_power_gate_clear") is True:
+        warnings.append("Verified fresh owner stop receipts cover all Codex workers and the dispatch barrier; Atlas-specific protection is clear.")
+    elif dispatch in ("running", "armed_idle"):
         reasons.append("Atlas scheduler is in RUN mode; it can start new Codex tasks even when agents are idle or queues are empty.")
     elif dispatch == "owner_stop_draining":
         reasons.append("Atlas owner STOP was requested, but model attempts are still in flight.")
@@ -225,7 +227,8 @@ def collect_power_safety():
         unknowns.append("Atlas owner-stop evidence is unavailable; idle Codex agents do not authorize shutdown.")
     if atlas == "unknown":
         unknowns.append("Atlas service state is unknown.")
-    elif atlas == "active" and dispatch not in ("owner_stop_no_active_attempts", "owner_stop_draining"):
+    elif (atlas == "active" and not atlas_control.get("atlas_power_gate_clear")
+          and dispatch not in ("owner_stop_no_active_attempts", "owner_stop_draining")):
         reasons.append("Atlas service is active and no verified drained owner stop exists.")
     if inhibitors["unknown"]:
         unknowns.append("Shutdown inhibitor data is missing or ambiguous.")

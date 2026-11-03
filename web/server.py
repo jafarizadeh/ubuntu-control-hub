@@ -78,7 +78,7 @@ def status():
             except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired):
                 pass
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "0.8.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "0.9.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -177,6 +177,9 @@ def safe_atlas_control_summary(value):
         "codex_user_stop_verified": False, "inflight_attempts": None,
         "running_packages": None, "ready_packages": None,
         "atlas_power_gate_clear": False,
+        "codex_stop": {"status": "unavailable", "expected_workers": None,
+                       "acknowledged_workers": 0, "dispatch_frozen": False,
+                       "evidence_age_seconds": None},
     }
     if not isinstance(value, dict):
         return unavailable
@@ -191,8 +194,8 @@ def safe_atlas_control_summary(value):
     if (state not in allowed or mode not in ("RUN", "STOP", "unknown")
             or type(owner_stop) is not bool
             or dispatch is not None and type(dispatch) is not bool
-            or value.get("atlas_power_gate_clear") is not False
-            or value.get("codex_user_stop_verified") is not False):
+            or type(value.get("atlas_power_gate_clear")) is not bool
+            or type(value.get("codex_user_stop_verified")) is not bool):
         return unavailable
     counts = {}
     for field in ("inflight_attempts", "running_packages", "ready_packages"):
@@ -217,10 +220,47 @@ def safe_atlas_control_summary(value):
         return unavailable
     if state == "owner_stop_draining" and not (counts["inflight_attempts"] or counts["running_packages"]):
         return unavailable
+
+    proof = value.get("codex_stop")
+    allowed_proof_states = {"unsupported", "not_requested", "resumed", "draining",
+                            "invalid", "stale", "verified", "unavailable"}
+    if not isinstance(proof, dict) or proof.get("status") not in allowed_proof_states:
+        return unavailable
+    expected = proof.get("expected_workers")
+    acknowledged = proof.get("acknowledged_workers")
+    frozen = proof.get("dispatch_frozen")
+    age = proof.get("evidence_age_seconds")
+    if (expected is not None and (type(expected) is not int or not 1 <= expected <= 16)
+            or type(acknowledged) is not int or not 0 <= acknowledged <= 16
+            or type(frozen) is not bool
+            or age is not None and
+            (type(age) not in (int, float) or not 0 <= age <= 15)):
+        return unavailable
+    verified = proof["status"] == "verified"
+    if (verified != value["codex_user_stop_verified"]
+            or verified != value["atlas_power_gate_clear"]):
+        return unavailable
+    if verified:
+        # Only a fresh, all-lanes drained owner receipt may clear the
+        # Atlas-specific gate. A global STOP alone never does this.
+        if (not frozen or expected != 3 or acknowledged != expected
+                or age is None or counts["inflight_attempts"] != 0
+                or counts["running_packages"] != 0
+                or state not in ("armed_idle", "owner_stop_no_active_attempts")):
+            return unavailable
+    else:
+        if proof["status"] == "verified":
+            return unavailable
+        # Non-verified proof must not claim all account-level acknowledgements.
+        if expected is not None and acknowledged > expected:
+            return unavailable
     return {
         **unavailable, "status": state, "scheduler_mode": mode,
         "dispatch_armed": dispatch, "owner_stop_verified": owner_stop,
-        "codex_user_stop_verified": False,
+        "codex_user_stop_verified": verified, "atlas_power_gate_clear": verified,
+        "codex_stop": {"status": proof["status"], "expected_workers": expected,
+                       "acknowledged_workers": acknowledged,
+                       "dispatch_frozen": frozen, "evidence_age_seconds": age},
         **counts,
     }
 
@@ -311,12 +351,31 @@ def power_safety():
         return {"status": availability, "safe_to_request": False, "checked_at": None,
                 "blocked_reasons": ["Fresh signed Ubuntu power safety data is unavailable."],
                 "unknowns": ["Ubuntu power safety is unknown."], "warnings": []}
+    # A signed report may remain available for 35 seconds, but a Codex stop
+    # proof is a 15-second lease. Recompute its age on the Pi before showing
+    # "Verified"; never extend a short owner-stop lease by caching telemetry.
+    atlas = safe_atlas_control_summary(safety.get("atlas_control"))
+    blockers = list(safety["blocked_reasons"])
+    if atlas["codex_user_stop_verified"]:
+        observed_age = max(0.0, float(age))
+        lease_age = atlas["codex_stop"]["evidence_age_seconds"] + observed_age
+        if lease_age > 15:
+            atlas = {
+                **atlas,
+                "codex_user_stop_verified": False,
+                "atlas_power_gate_clear": False,
+                "codex_stop": {**atlas["codex_stop"],
+                               "status": "stale", "dispatch_frozen": False,
+                               "evidence_age_seconds": None},
+            }
+            blockers.append("Codex user-stop acknowledgement expired since the latest signed Ubuntu report.")
     # Execution remains disabled even if a future agent reports a clear preflight.
     return {**{key: safety[key] for key in required},
+            "blocked_reasons": blockers,
             "status": "fresh", "safe_to_request": False,
             "cpuwm": safe_cpuwm_summary(safety.get("cpuwm")),
             "desktop_work": safe_desktop_work(safety.get("desktop_work")),
-            "atlas_control": safe_atlas_control_summary(safety.get("atlas_control"))}
+            "atlas_control": atlas}
 
 
 def preview_response(result):
@@ -326,7 +385,7 @@ def preview_response(result):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/0.8"
+    server_version = "UbuntuControl/0.9"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -402,7 +461,7 @@ class Handler(BaseHTTPRequestHandler):
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "0.8.0", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "0.9.0", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -582,7 +641,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v0.8 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v0.9 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 
