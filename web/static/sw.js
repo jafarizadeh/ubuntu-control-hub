@@ -1,6 +1,6 @@
 "use strict";
-const CACHE = "ubuntu-control-shell-v8-power-preview";
-const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/icon.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest"];
+const CACHE = "ubuntu-control-shell-v10-compact-safety";
+const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/icon.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest", "/assets/ubuntu-logo.svg", "/assets/monitor.svg", "/assets/cpu.svg", "/assets/wifi.svg", "/assets/wifi-off.svg"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
 });

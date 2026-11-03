@@ -160,6 +160,7 @@ function paintWithoutUbuntu() {
   el("network-items").append(hint);
   put("audio-capability", "Unavailable");
   put("network-capability", "Unavailable");
+  el("network-control-icon").src = "/assets/wifi-off.svg";
   put("performance-capability", "Unavailable");
   el("performance-capability").classList.remove("online");
   el("profile-selector").value = "balanced";
@@ -225,6 +226,8 @@ function paintUbuntu(report) {
   put("audio-capability", audio.available ? "Monitoring" : "Unavailable");
   put("network-count", network.available ? fmt(connections.length, 0) + " active" : "Unavailable");
   put("network-capability", network.available ? "Monitoring" : "Unavailable");
+  el("network-control-icon").src = network.available && network.connected
+    ? "/assets/wifi.svg" : "/assets/wifi-off.svg";
   const networkList = el("network-items");
   networkList.replaceChildren();
   if (connections.length) {
@@ -595,7 +598,12 @@ function syncPreviewControls() {
 function clearPowerPreview() {
   previewState = null;
   put("power-safety-status", "Safety data unavailable — power actions blocked");
+  put("guard-atlas", "Unknown");
+  put("guard-cpuwm", "Unknown");
+  put("guard-desktop", "Unverified");
   el("power-safety-details").replaceChildren();
+  put("power-safety-count", "0");
+  el("power-safety-more").open = false;
   put("power-preview-status", "Preview unavailable — refresh to check server state");
   syncPreviewControls();
 }
@@ -604,10 +612,21 @@ function paintPowerPreview(data) {
   if (data.preview_only !== true || data.will_execute !== false) throw new Error("Invalid preview response");
   previewState = data.state;
   const safety = data.safety || {};
+  const cpuwm = safety.cpuwm || {};
+  const desktopWork = safety.desktop_work || {};
+  put("guard-atlas", safety.atlas_state === "active" ? "Active" :
+    safety.atlas_state === "inactive" ? "Inactive" : "Unknown");
+  put("guard-cpuwm", cpuwm.status === "fresh" && Number.isInteger(cpuwm.managed_scopes)
+    ? fmt(cpuwm.managed_scopes, 0) + " extra" : "Unknown");
+  put("guard-desktop", desktopWork.status === "unverifiable" ?
+    (desktopWork.app_categories?.length
+      ? "Unverified · " + desktopWork.app_categories.join(", ") : "Unverified") : "Unknown");
   put("power-safety-status", "Blocked: no power action will be performed. Safety: " + (safety.status || "unknown"));
   const list = el("power-safety-details");
   list.replaceChildren();
-  for (const text of [...(safety.blocked_reasons || []), ...(safety.warnings || [])]) {
+  const details = [...(safety.blocked_reasons || []), ...(safety.warnings || [])];
+  put("power-safety-count", String(details.length));
+  for (const text of details) {
     const item = document.createElement("li");
     item.textContent = text;
     list.append(item);

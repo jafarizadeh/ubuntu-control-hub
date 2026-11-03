@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import subprocess
+import stat
 import tempfile
 import unittest
 from unittest import mock
@@ -49,7 +50,7 @@ class SafetyTests(unittest.TestCase):
 
     def test_collection_conservative_and_redacted(self):
         active = INACTIVE.replace("inactive", "active").replace("dead", "running")
-        with mock.patch.object(safety, "read_command", side_effect=[active, HEADER + BLOCK + DELAY + "2 inhibitors listed.", "codex\nns3-run\natlas\ncpuwm\n"]):
+        with mock.patch.object(safety, "read_command", side_effect=[active, HEADER + BLOCK + DELAY + "2 inhibitors listed.", "codex\nns3-run\natlas\ncpuwm\n", None]):
             report = safety.collect_power_safety()
         self.assertFalse(report["safe_to_request"])
         self.assertEqual(report["atlas_state"], "active")
@@ -58,7 +59,7 @@ class SafetyTests(unittest.TestCase):
         self.assertTrue(report["unknowns"])
         self.assertIsNotNone(datetime.fromisoformat(report["checked_at"]).tzinfo)
         self.assertNotIn("private", json.dumps(report))
-        for results in ([INACTIVE, "No inhibitors listed.", ""], [None, None, None]):
+        for results in ([INACTIVE, "No inhibitors listed.", "", None], [None, None, None, None]):
             with mock.patch.object(safety, "read_command", side_effect=results):
                 report = safety.collect_power_safety()
             self.assertFalse(report["safe_to_request"])
@@ -89,6 +90,190 @@ class SafetyTests(unittest.TestCase):
                 result = safety.read_command(safety.ATLAS)
             self.assertEqual(result, "ok" if case == "ok" else None)
             child.kill.assert_called_once()
+
+
+class CpuwmSafetyTests(unittest.TestCase):
+    NOW = datetime(2026, 11, 3, 17, 11, 10, tzinfo=timezone.utc)
+
+    def status(self):
+        return {"profile": "balanced", "active_managed_scopes": [], "active_roles": [],
+                "last_monitor": {"timestamp": "2026-11-03T18:11:05+0100", "profile": "balanced",
+                                 "twt_enforcement": {"primary_active": True,
+                                                     "secondary_active": False, "ok": True}}}
+
+    def parse(self, data):
+        return safety.parse_cpuwm(json.dumps(data), self.NOW)
+
+    def collect(self, data, atlas=INACTIVE, processes="", inhibitors="No inhibitors listed."):
+        with mock.patch.object(safety, "read_command", side_effect=[atlas, inhibitors, processes, json.dumps(data)]) as reader, mock.patch.object(safety, "datetime", wraps=datetime) as clock, mock.patch.object(safety.subprocess, "Popen") as popen:
+            clock.now.return_value = self.NOW
+            report = safety.collect_power_safety()
+        self.assertEqual(reader.call_args_list, [mock.call(args) for args in
+                         (safety.ATLAS, safety.INHIBITORS, safety.PROCESSES, safety.CPUWM)])
+        popen.assert_not_called()
+        self.assertFalse(report["safe_to_request"])
+        self.assertTrue(report["blocked_reasons"])
+        return report
+
+    def test_fresh_counts_and_only_sanitized_fields(self):
+        data = self.status()
+        data["active_managed_scopes"] = ["/private/user/job.scope"]
+        data["active_roles"] = ["secret-role"]
+        data["private"] = {"pid": 987654, "user": "hidden-user"}
+        result = self.collect(data)
+        self.assertEqual(result["cpuwm"], {"status": "fresh", "managed_scopes": 1,
+                         "managed_roles": 1, "primary_active": True, "secondary_active": False,
+                         "enforcement_ok": True, "monitor_age_seconds": 5.0})
+        for secret in ("private", "secret-role", "987654", "hidden-user", "balanced", "job.scope"):
+            self.assertNotIn(secret, json.dumps(result))
+
+    def test_zero_scopes_never_idle_for_any_atlas_state(self):
+        for atlas in (INACTIVE, INACTIVE.replace("inactive", "active").replace("dead", "running"), None):
+            data = self.status()
+            data["last_monitor"]["twt_enforcement"]["primary_active"] = False
+            report = self.collect(data, atlas=atlas)
+            self.assertEqual(report["cpuwm"]["managed_scopes"], 0)
+            self.assertIn("zero scopes cannot prove idle", " ".join(report["warnings"]))
+            self.assertIn("CPUWM active-job state is not verified", " ".join(report["unknowns"]))
+
+    def test_freshness_boundaries(self):
+        for timestamp, expected in (("2026-11-03T17:11:15+00:00", "fresh"),
+                                    ("2026-11-03T17:11:15.001+00:00", "stale"),
+                                    ("2026-11-03T17:10:10Z", "fresh"),
+                                    ("2026-11-03T17:10:09.999Z", "stale")):
+            data = self.status()
+            data["last_monitor"]["timestamp"] = timestamp
+            result = self.parse(data)
+            self.assertEqual(result["status"], expected)
+            if expected == "stale":
+                for key in ("managed_scopes", "managed_roles", "primary_active", "secondary_active", "enforcement_ok"):
+                    self.assertIsNone(result[key])
+
+    def test_timestamp_must_be_aware_and_valid(self):
+        for timestamp in (None, 123, "", "bad", "2026-11-03T17:11:05", "2026-11-03"):
+            data = self.status()
+            data["last_monitor"]["timestamp"] = timestamp
+            self.assertEqual(self.parse(data)["status"], "unavailable")
+
+    def test_only_monitor_timestamp_controls_freshness(self):
+        data = self.status()
+        data.update(timestamp=self.NOW.isoformat(), epoch=self.NOW.timestamp(), ok=True)
+        data["last_monitor"]["timestamp"] = "2000-01-01T00:00:00Z"
+        report = self.collect(data)
+        self.assertEqual(report["cpuwm"]["status"], "stale")
+        self.assertIn("CPUWM status is stale", " ".join(report["blocked_reasons"]))
+
+    def test_profile_allowlist_and_monitor_consistency(self):
+        for profile in ("quiet", "balanced", "performance"):
+            data = self.status()
+            data["profile"] = data["last_monitor"]["profile"] = profile
+            self.assertEqual(self.parse(data)["status"], "fresh")
+        for profile in (None, [], {}, True, "unknown", "balanced; reboot"):
+            data = self.status()
+            data["profile"] = profile
+            self.assertEqual(self.parse(data)["status"], "unavailable")
+        data = self.status()
+        data["last_monitor"]["profile"] = "quiet"
+        self.assertEqual(self.parse(data)["status"], "unavailable")
+
+    def test_list_types_limits_and_entries(self):
+        for key in ("active_managed_scopes", "active_roles"):
+            for values in (None, {}, "role", 0, [None], [1], [{}], [""], ["  "], ["x"] * 129):
+                data = self.status()
+                data[key] = values
+                self.assertEqual(self.parse(data)["status"], "unavailable")
+            data = self.status()
+            data[key] = ["x"] * 128
+            self.assertEqual(self.parse(data)["status"], "fresh")
+
+    def test_enforcement_requires_boolean_schema_and_ok(self):
+        for key in ("primary_active", "secondary_active", "ok"):
+            for value in (None, 0, 1, "true", [], {}):
+                data = self.status()
+                data["last_monitor"]["twt_enforcement"][key] = value
+                self.assertEqual(self.parse(data)["status"], "unavailable")
+        data = self.status()
+        data["last_monitor"]["twt_enforcement"]["ok"] = False
+        report = self.collect(data)
+        self.assertIsNone(report["cpuwm"]["primary_active"])
+        self.assertIsNone(report["cpuwm"]["secondary_active"])
+        self.assertIn("enforcement is not confirmed", " ".join(report["blocked_reasons"]))
+
+    def test_missing_schema_and_malformed_json(self):
+        for key in self.status():
+            data = self.status()
+            del data[key]
+            self.assertEqual(self.parse(data)["status"], "unavailable")
+        for value in (None, "", "{", "[]", "null", "true", '{"profile":"quiet","profile":"balanced"}',
+                      "x" * (safety.LIMIT + 1), "[" * 2000):
+            self.assertEqual(safety.parse_cpuwm(value, self.NOW)["status"], "unavailable")
+
+    def test_unavailable_command_fails_closed(self):
+        with mock.patch.object(safety, "read_command", return_value=None):
+            report = safety.collect_power_safety()
+        self.assertFalse(report["safe_to_request"])
+        self.assertEqual(report["cpuwm"]["status"], "unavailable")
+        self.assertIn("CPUWM status is unavailable", " ".join(report["blocked_reasons"]))
+
+    def test_desktop_categories_and_session_block_remain_unverifiable(self):
+        report = self.collect(self.status(), processes="firefox\ncode\nsoffice.bin\nprivate-name\n",
+                              inhibitors=HEADER + BLOCK + "1 inhibitor listed.")
+        self.assertEqual(report["desktop_work"]["app_categories"], ["Browser", "Editor", "Document tools"])
+        self.assertEqual(report["desktop_work"]["status"], "unverifiable")
+        self.assertTrue(report["desktop_work"]["session_shutdown_blocked"])
+        self.assertIn("desktop session blocks shutdown", " ".join(report["blocked_reasons"]))
+        self.assertNotIn("private-name", json.dumps(report))
+        for processes in ("", None):
+            report = self.collect(self.status(), processes=processes)
+            self.assertEqual(report["desktop_work"]["status"], "unverifiable")
+
+    def test_cpuwm_fixed_argv_and_no_mutator(self):
+        self.assertEqual(safety.CPUWM, ["/usr/bin/python3", "-B", str(safety.CPUWM_SCRIPT), "status"])
+        self.assertEqual(safety.CPUWM_SCRIPT.name, "cpuwm.py")
+        with mock.patch.object(Path, "lstat", side_effect=[mock.Mock(st_mode=stat.S_IFREG), mock.Mock(st_mode=stat.S_IFDIR)]), mock.patch.object(safety.subprocess, "Popen", side_effect=FileNotFoundError) as run:
+            self.assertIsNone(safety.read_command(safety.CPUWM))
+            self.assertEqual(run.call_args.args[0], safety.CPUWM)
+            self.assertIs(run.call_args.kwargs["shell"], False)
+        for action in ("profile", "monitor", "run", "budget", "status; reboot"):
+            with mock.patch.object(safety.subprocess, "Popen") as run:
+                with self.assertRaises(ValueError):
+                    safety.read_command(safety.CPUWM[:-1] + [action])
+                run.assert_not_called()
+
+    def test_cpuwm_reader_bounds_timeout_and_exit_cleanup(self):
+        for case in ("timeout", "deadline", "overflow", "wait_timeout", "exit", "decode", "ok"):
+            with self.subTest(case=case):
+                child = mock.MagicMock()
+                child.poll.return_value = None
+                child.wait.side_effect = [subprocess.TimeoutExpired("reader", 3), 0] if case == "wait_timeout" else None
+                child.wait.return_value = 1 if case == "exit" else 0
+                selector = mock.MagicMock()
+                selector.select.return_value = [] if case == "timeout" else [(None, None)]
+                chunks = [b"x" * 4096] * 8 + [b"x"] if case == "overflow" else [b"\xff" if case == "decode" else b"{}", b""]
+                with mock.patch.object(Path, "lstat", side_effect=[mock.Mock(st_mode=stat.S_IFREG), mock.Mock(st_mode=stat.S_IFDIR)]), mock.patch.object(safety.subprocess, "Popen") as run, mock.patch.object(safety.selectors, "DefaultSelector") as select, mock.patch.object(safety.os, "read", side_effect=chunks) as read, mock.patch.object(safety.time, "monotonic", side_effect=[10, 14] if case == "deadline" else None, return_value=10):
+                    run.return_value.__enter__.return_value = child
+                    select.return_value.__enter__.return_value = selector
+                    result = safety.read_command(safety.CPUWM)
+                self.assertEqual(result, "{}" if case == "ok" else None)
+                child.kill.assert_called_once()
+                for call in read.call_args_list:
+                    self.assertLessEqual(call.args[1], 4096)
+                if case == "overflow":
+                    self.assertEqual(read.call_args.args[1], 1)
+                if case not in ("deadline", "timeout", "overflow"):
+                    self.assertEqual(child.wait.call_args_list[0], mock.call(timeout=3))
+
+    def test_missing_symlink_or_special_script_never_executes(self):
+        for mode in (stat.S_IFLNK, stat.S_IFDIR, stat.S_IFIFO, stat.S_IFSOCK):
+            with mock.patch.object(Path, "lstat", return_value=mock.Mock(st_mode=mode)), mock.patch.object(safety.subprocess, "Popen") as run:
+                self.assertIsNone(safety.read_command(safety.CPUWM))
+                run.assert_not_called()
+        with mock.patch.object(Path, "lstat", side_effect=FileNotFoundError), mock.patch.object(safety.subprocess, "Popen") as run:
+            self.assertIsNone(safety.read_command(safety.CPUWM))
+            run.assert_not_called()
+        with mock.patch.object(Path, "lstat", side_effect=[mock.Mock(st_mode=stat.S_IFREG), mock.Mock(st_mode=stat.S_IFLNK)]), mock.patch.object(safety.subprocess, "Popen") as run:
+            self.assertIsNone(safety.read_command(safety.CPUWM))
+            run.assert_not_called()
 
 
 class PreviewTests(unittest.TestCase):
@@ -235,6 +420,22 @@ class EndpointTests(unittest.TestCase):
                     self.assertEqual(h._json.call_args.args[1], code)
                 else:
                     self.assertEqual(h._json.call_args.args[0]["state"], "draft")
+
+    def test_public_power_safety_summary_is_bounded_and_redacted(self):
+        clean = {"status": "fresh", "managed_scopes": 0, "managed_roles": 0,
+                 "primary_active": False, "secondary_active": False,
+                 "enforcement_ok": True, "monitor_age_seconds": 1.2,
+                 "private_path": "/not-for-browser"}
+        result = server.safe_cpuwm_summary(clean)
+        self.assertEqual(result["managed_scopes"], 0)
+        self.assertNotIn("private_path", result)
+        self.assertEqual(server.safe_cpuwm_summary({**clean, "managed_scopes": 500})["status"], "unavailable")
+        desktop = server.safe_desktop_work({"status": "unverifiable",
+            "app_categories": ["Browser"], "process_observation": "available",
+            "session_shutdown_blocked": True, "private_filename": "secret.odt"})
+        self.assertEqual(desktop["app_categories"], ["Browser"])
+        self.assertNotIn("private_filename", desktop)
+        self.assertEqual(server.safe_desktop_work({"status":"saved", "app_categories":[]})["status"], "unverifiable")
 
     def test_frontend_preview_is_control_only(self):
         html = (ROOT / "web/static/index.html").read_text()

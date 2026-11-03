@@ -67,7 +67,7 @@ def status():
         report = json.loads(r.stdout)
         report["tv"]["paired"] = paired()
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "0.3.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "0.4.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -149,6 +149,60 @@ def can_control(headers):
         return False
 
 
+def safe_cpuwm_summary(value):
+    """Expose only bounded, private-data-free status indicators."""
+    empty = {"status": "unavailable", "managed_scopes": None,
+             "managed_roles": None, "primary_active": None,
+             "secondary_active": None, "enforcement_ok": None,
+             "monitor_age_seconds": None}
+    if not isinstance(value, dict) or value.get("status") not in ("fresh", "stale", "unavailable"):
+        return empty
+    fields = ("managed_scopes", "managed_roles")
+    counts = {}
+    for name in fields:
+        v = value.get(name)
+        if v is not None and (type(v) is not int or not 0 <= v <= 128):
+            return empty
+        counts[name] = v
+    flags = {}
+    for name in ("primary_active", "secondary_active", "enforcement_ok"):
+        v = value.get(name)
+        if v is not None and type(v) is not bool:
+            return empty
+        flags[name] = v
+    age = value.get("monitor_age_seconds")
+    if age is not None:
+        import math
+        if type(age) not in (int, float) or not math.isfinite(age) or not -5 <= age < 3600 * 24:
+            return empty
+    if value["status"] == "fresh" and (None in counts.values() or flags["enforcement_ok"] is None):
+        return empty
+    return {**empty, "status": value["status"], **counts, **flags,
+            "monitor_age_seconds": age}
+
+
+def safe_desktop_work(value):
+    """No file names, PIDs, process argv or document contents."""
+    empty = {"status": "unverifiable", "app_categories": [],
+             "process_observation": "unavailable", "session_shutdown_blocked": None}
+    if not isinstance(value, dict) or value.get("status") != "unverifiable":
+        return empty
+    cats = value.get("app_categories")
+    if (not isinstance(cats, list) or len(cats) > 3
+            or len(set(str(x) for x in cats)) != len(cats)
+            or any(type(x) is not str or x not in ("Browser", "Editor", "Document tools") for x in cats)):
+        return empty
+    observation = value.get("process_observation")
+    if observation not in ("available", "unavailable"):
+        return empty
+    blocked = value.get("session_shutdown_blocked")
+    if type(blocked) is not bool:
+        return empty
+    return {"status": "unverifiable", "app_categories": cats,
+            "process_observation": observation,
+            "session_shutdown_blocked": blocked}
+
+
 def power_safety():
     """Use signed Ubuntu data only; never collect Pi hardware metrics here."""
     state = BROKER.desktop_state()
@@ -183,7 +237,9 @@ def power_safety():
                 "unknowns": ["Ubuntu power safety is unknown."], "warnings": []}
     # Execution remains disabled even if a future agent reports a clear preflight.
     return {**{key: safety[key] for key in required},
-            "status": "fresh", "safe_to_request": False}
+            "status": "fresh", "safe_to_request": False,
+            "cpuwm": safe_cpuwm_summary(safety.get("cpuwm")),
+            "desktop_work": safe_desktop_work(safety.get("desktop_work"))}
 
 
 def preview_response(result):
@@ -193,7 +249,7 @@ def preview_response(result):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/0.3"
+    server_version = "UbuntuControl/0.4"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -269,7 +325,7 @@ class Handler(BaseHTTPRequestHandler):
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "0.3", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "0.4", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -424,7 +480,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v0.3 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v0.4 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 

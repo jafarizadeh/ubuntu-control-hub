@@ -90,6 +90,7 @@ class SignedAgentTests(unittest.TestCase):
 
     def test_broker_accepts_valid_signed_report(self):
         relay = broker.AgentBroker(self.public, offline_after=35)
+        self.addCleanup(relay.commands.db.close)
         req, headers = self.signed_request()
         self.assertTrue(relay.authorized(headers, req.data))
         self.assertTrue(relay.accept(req.data))
@@ -100,17 +101,20 @@ class SignedAgentTests(unittest.TestCase):
 
     def test_signature_replay_rejected(self):
         relay = broker.AgentBroker(self.public)
+        self.addCleanup(relay.commands.db.close)
         req, headers = self.signed_request()
         self.assertTrue(relay.authorized(headers, req.data))
         self.assertFalse(relay.authorized(headers, req.data))
 
     def test_signature_tamper_rejected(self):
         relay = broker.AgentBroker(self.public)
+        self.addCleanup(relay.commands.db.close)
         req, headers = self.signed_request()
         self.assertFalse(relay.authorized(headers, req.data + b"\n"))
 
     def test_missing_signature_rejected(self):
         relay = broker.AgentBroker(self.public)
+        self.addCleanup(relay.commands.db.close)
         req, headers = self.signed_request()
         self.assertFalse(relay.authorized({}, req.data))
 

@@ -43,7 +43,7 @@
       <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
       <div class="sidebar-bottom">
         <span class="privacy-dot"></span> Private via Tailscale
-        <div class="side-version">Ubuntu Control v0.3</div>
+        <div class="side-version">Ubuntu Control v0.4</div>
       </div>
     </nav>
     <main id="main">
@@ -59,7 +59,7 @@
 
         <section class="overview-card panel" aria-label="Ubuntu system overview">
           <div class="overview-head">
-            <div class="ubuntu-symbol" aria-hidden="true">U</div>
+            <div class="ubuntu-symbol" aria-hidden="true"><img src="/assets/ubuntu-logo.svg" alt=""></div>
             <div class="overview-id">
               <strong id="desktop-hostname">Ubuntu</strong>
               <span id="desktop-agent-state">Waiting for Ubuntu agent</span>
@@ -80,7 +80,7 @@
         <div class="section-title-row power-heading"><div><h2>Power</h2><p>Device power controls</p></div></div>
         <div class="power-grid">
           <article class="power-card panel">
-            <div class="power-card-head"><div class="power-symbol ubuntu-power">U</div><div><h3>Ubuntu Desktop</h3><p id="ubuntu-power-status">Checking power state…</p></div></div>
+            <div class="power-card-head"><div class="power-symbol ubuntu-power"><img src="/assets/ubuntu-logo.svg" alt=""></div><div><h3>Ubuntu Desktop</h3><p id="ubuntu-power-status">Checking power state…</p></div></div>
             <div class="power-actions">
               <button class="btn btn-primary" type="button" data-action="wake-desktop" id="desktop-on">Power on</button>
               <button class="btn btn-outline" type="button" id="desktop-off" disabled title="Shutdown control is not connected yet">Power off</button>
@@ -88,7 +88,7 @@
             <small class="power-note" id="desktop-power-note">Wake-on-LAN available. Shutdown requires the protected command channel.</small>
           </article>
           <article class="power-card panel">
-            <div class="power-card-head"><div class="power-symbol tv-power">▣</div><div><h3>LG Display</h3><p id="tv-power-status">Checking monitor…</p></div></div>
+            <div class="power-card-head"><div class="power-symbol tv-power"><img src="/assets/monitor.svg" alt=""></div><div><h3>LG Display</h3><p id="tv-power-status">Checking monitor…</p></div></div>
             <div class="power-actions">
               <button class="btn btn-primary" type="button" data-action="wake-tv" id="tv-on">Power on</button>
               <button class="btn btn-outline" type="button" data-action="tv-power-off" id="tv-off" disabled>Standby</button>
@@ -131,7 +131,16 @@
             <div class="control-card-header"><div class="control-icon">◷</div><div><h3>Power safety &amp; timer</h3><p>Read-only safety and timer simulation</p></div></div>
             <p class="control-note">Simulation only — will NOT turn off or restart Ubuntu.</p>
             <p id="power-safety-status" role="status">Safety data unavailable</p>
-            <ul id="power-safety-details"></ul>
+            <div class="power-guard-summary" aria-label="Ubuntu power readiness">
+              <div><span>Atlas service</span><strong id="guard-atlas">Unknown</strong></div>
+              <div><span>CPUWM extra scopes</span><strong id="guard-cpuwm">Unknown</strong></div>
+              <div><span>Unsaved desktop work</span><strong id="guard-desktop">Unverified</strong></div>
+            </div>
+            <p class="guard-hint">Zero CPUWM scopes does not prove that Atlas is idle or files are saved.</p>
+            <details id="power-safety-more">
+              <summary>View safety details (<span id="power-safety-count">0</span>)</summary>
+              <ul id="power-safety-details"></ul>
+            </details>
             <label class="field-label" for="power-preview-action">Simulation mode</label>
             <select id="power-preview-action"><option value="shutdown">Shutdown preview</option><option value="restart">Restart preview</option></select>
             <label class="field-label" for="power-preview-delay">Delay in minutes (1–240)</label>
@@ -154,14 +163,14 @@
             <p class="control-note">Changes are available only to the verified Tailnet owner. Every request is tracked until Ubuntu confirms the result.</p>
           </article>
           <article class="control-card panel">
-            <div class="control-card-header"><div class="control-icon">⌁</div><div><h3>Network</h3><p>Ethernet, Wi-Fi and connectivity</p></div><span class="feature-state" id="network-capability">Read only</span></div>
+            <div class="control-card-header"><div class="control-icon"><img id="network-control-icon" src="/assets/wifi.svg" alt="" aria-hidden="true"></div><div><h3>Network</h3><p>Ethernet, Wi-Fi and connectivity</p></div><span class="feature-state" id="network-capability">Read only</span></div>
             <div class="setting-line"><span>Connections</span><strong id="network-count">—</strong></div>
             <div class="network-items" id="network-items"><span>No network details</span></div>
             <button class="btn btn-outline btn-wide" type="button" disabled>Manage interfaces</button>
             <p class="control-note">Disconnecting the active network could cut off remote access, so network changes are locked until recovery safeguards exist.</p>
           </article>
           <article class="control-card panel">
-            <div class="control-card-header"><div class="control-icon">◫</div><div><h3>CPU & GPU Workload Manager</h3><p>Existing performance controller</p></div><span class="feature-state" id="performance-capability">Checking</span></div>
+            <div class="control-card-header"><div class="control-icon"><img src="/assets/cpu.svg" alt="" aria-hidden="true"></div><div><h3>CPU & GPU Workload Manager</h3><p>Existing performance controller</p></div><span class="feature-state" id="performance-capability">Checking</span></div>
             <div class="setting-line"><span>Active profile</span><strong id="control-profile">—</strong></div>
             <label class="field-label" for="profile-selector">Target profile</label>
             <select id="profile-selector" disabled><option value="quiet">Quiet</option><option value="balanced" selected>Balanced</option><option value="performance">Performance</option></select>
@@ -181,7 +190,7 @@
             <p class="control-note">No unrestricted remote shell is exposed through the phone dashboard. Remote access must use an authenticated, audited session.</p>
           </article>
           <article class="control-card panel">
-            <div class="control-card-header"><div class="control-icon">▣</div><div><h3>LG webOS</h3><p>Pairing and display controls</p></div><span class="feature-state" id="tv-control-capability">Pairing needed</span></div>
+            <div class="control-card-header"><div class="control-icon"><img src="/assets/monitor.svg" alt="" aria-hidden="true"></div><div><h3>LG webOS</h3><p>Pairing and display controls</p></div><span class="feature-state" id="tv-control-capability">Pairing needed</span></div>
             <p class="control-note" id="tv-controls-message">LG pairing must be approved on the television.</p>
             <button class="btn btn-outline btn-wide" data-action="pair-tv" id="pair-tv-btn" type="button">Pair LG display</button>
             <div id="tv-remote-controls" hidden>

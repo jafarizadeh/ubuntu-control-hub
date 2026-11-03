@@ -97,5 +97,49 @@ class RepositorySmokeTests(unittest.TestCase):
         self.assertIn('window.confirm(', js)
 
 
+    def test_user_supplied_svg_assets_are_local_and_inert(self):
+        import xml.etree.ElementTree as ET
+        names = ("ubuntu-logo.svg", "monitor.svg", "wifi.svg", "wifi-off.svg", "cpu.svg")
+        html = (ROOT / "web/static/index.html").read_text()
+        js = (ROOT / "web/static/app.js").read_text()
+        worker = (ROOT / "web/static/sw.js").read_text()
+        allowed = {"svg", "g", "path", "rect", "circle", "ellipse",
+                   "line", "polyline", "polygon", "defs", "linearGradient", "stop"}
+        for name in names:
+            svg = ROOT / "web/static/assets" / name
+            self.assertTrue(svg.is_file(), name)
+            body = svg.read_text()
+            self.assertNotIn("<!DOCTYPE", body)
+            self.assertNotIn("<script", body)
+            self.assertNotIn("javascript:", body)
+            self.assertNotIn("foreignObject", body)
+            node = ET.fromstring(body)
+            for item in node.iter():
+                self.assertIn(item.tag.rsplit("}",1)[-1],allowed)
+                for attr in item.attrib:
+                    self.assertFalse(attr.startswith("on"))
+                    self.assertNotIn("href",attr.lower())
+            self.assertIn("/assets/" + name, worker)
+        self.assertIn("/assets/ubuntu-logo.svg", html)
+        self.assertIn("/assets/monitor.svg", html)
+        self.assertIn("/assets/cpu.svg", html)
+        self.assertIn('id="network-control-icon"', html)
+        self.assertIn("/assets/wifi-off.svg", js)
+
+    def test_power_safety_summaries_are_read_only(self):
+        html = (ROOT / "web/static/index.html").read_text()
+        js = (ROOT / "web/static/app.js").read_text()
+        for item in ("guard-atlas", "guard-cpuwm", "guard-desktop"):
+            self.assertIn('id="' + item + '"', html)
+            self.assertIn('put("' + item + '"', js)
+        self.assertIn("Unverified", html)
+        self.assertIn("Zero CPUWM scopes does not prove", html)
+        self.assertIn('id="power-safety-more"', html)
+        self.assertIn('id="power-safety-count"', html)
+        self.assertIn('put("power-safety-count"', js)
+
+        self.assertIn('id="desktop-off" disabled', html)
+
+
 if __name__ == "__main__":
     unittest.main()

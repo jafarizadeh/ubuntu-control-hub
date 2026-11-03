@@ -182,3 +182,23 @@ select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:1
 #power-preview-card #power-preview-delay{display:block;width:100%;border:1px solid var(--line);padding:11px 12px;border-radius:10px;background:var(--surface);color:var(--ink);min-height:43px}
 #power-preview-card #power-preview-status{font-size:11px;color:var(--primary-dark);background:var(--surface-alt);border:1px solid var(--line);border-radius:11px;padding:12px;line-height:1.6;margin:12px 0 0;overflow-wrap:anywhere}
 #power-preview-card .inline-actions{margin-top:16px}
+/* Sanitized user-supplied SVG assets and read-only power readiness */
+.ubuntu-symbol img{height:35px;width:35px;object-fit:contain}
+.power-symbol img{height:29px;width:29px;object-fit:contain}
+.control-icon img{height:25px;width:25px;object-fit:contain}
+.power-guard-summary{display:grid;gap:7px;margin:14px 0 8px}
+.power-guard-summary>div{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 11px;background:#f7fafb;border:1px solid var(--line);border-radius:9px;min-width:0}
+.power-guard-summary span{color:#788a9a;font-size:11px}
+.power-guard-summary strong{font-size:11px;color:#355168;text-align:right;overflow-wrap:anywhere}
+.guard-hint{font-size:10px;color:#96a6b6;line-height:1.5;margin:3px 0 13px}
+@media(max-width:740px){
+  html{scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+  .layout{padding-bottom:calc(155px + env(safe-area-inset-bottom))}
+  #power-preview-card button,#power-preview-card input,#power-preview-card select{
+    scroll-margin-bottom:calc(112px + env(safe-area-inset-bottom))
+  }
+}
+#power-safety-more{border-top:1px solid var(--line);margin:12px 0 15px;padding-top:11px}
+#power-safety-more>summary{color:var(--primary-dark);font-size:11px;font-weight:730;cursor:pointer;list-style-position:inside}
+#power-safety-more[open]>summary{margin-bottom:10px}
+#power-safety-more summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:5px}

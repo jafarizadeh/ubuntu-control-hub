@@ -120,6 +120,32 @@ best effort; they cannot establish that all long-running jobs are idle. CPUWM
 active-job state and unsaved desktop work remain unverified, so `safe_to_request`
 is conservatively false. These checks do not bypass CPUWM or release inhibitors.
 
+The additional CPUWM reader runs only `/usr/bin/python3 -B` with the exact
+`cpu-workload-manager/cpuwm.py` under the current Unix user's home and the single
+`status` argument. The script must be a regular non-symlink file and its manager
+directory must not be a symlink. The same deadline and output bound apply; no
+network argument is accepted and no profile, monitor, run or budget action is
+invoked. Profiles are allowlisted (`quiet`, `balanced`, `performance`), scope and
+role lists must contain strings and at most 128 entries each, and the monitor
+profile must match. Freshness comes only from a timezone-aware
+`last_monitor.timestamp`, with age between -5 and 60 seconds inclusive.
+
+The sanitized `cpuwm` summary reports `status` (`fresh`, `stale`, `unavailable`),
+`managed_scopes`, `managed_roles`, `monitor_age_seconds`, and enforcement booleans.
+Stale or invalid data supplies no counts or enforcement indicators. Fresh
+`primary_active`/`secondary_active` indicators require a strictly boolean
+`twt_enforcement` schema and `ok: true`; failed enforcement is an explicit blocker.
+Only counts are exposed, never role names, scope paths or raw JSON. Zero extra
+managed scopes does **not** prove system idleness, even when Atlas is inactive.
+Enforcement describes resource policy, not job idleness; the public root resource
+receipt is not read or treated as job drain evidence.
+
+`desktop_work.status` always remains `unverifiable`. Best-effort Browser, Editor
+and Document tools categories use process command names, without disclosing names
+or identities. Neither an empty category list nor absent inhibitors verifies saved
+files. GNOME session shutdown/block inhibitors continue blocking power requests.
+Missing, malformed, timed-out or stale observations fail closed.
+
 `GET /api/power/preview`, `POST /api/power/preview` and `POST /api/power/cancel`
 also require verified operator identity. POSTs additionally require the existing
 same-Origin, session cookie, CSRF and JSON checks. Create accepts exactly:
@@ -149,6 +175,8 @@ use a browser countdown as authority. If disconnected, readings are unavailable.
 
 Before a future real action can be implemented, obtain explicit future approval,
 add a second confirmation and recheck active work and inhibitors at the deadline.
-Verify CPUWM jobs through its supported interface without bypassing the manager.
-Unsaved desktop work must have explicit protection; never blindly force a remote
-shutdown. No automatic execution may be enabled by this preview iteration.
+Require CPUWM and Atlas job drain confirmation through supported interfaces without
+bypassing the manager, plus external session/save acknowledgements through an
+app-specific clean shutdown workflow. Unsaved desktop work must have explicit
+protection; never blindly force a remote shutdown. No shutdown, restart or
+scheduling activation is enabled by this iteration.

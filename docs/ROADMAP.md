@@ -31,6 +31,8 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [ ] Protected shutdown and restart with explicit confirmation.
 - [x] Preview-only timer, server remaining-time display, persistence and cancellation (no execution).
 - [x] Read-only power safety: Atlas, shutdown inhibitors and best-effort workload categories; unknown data blocks.
+- [x] Bounded read-only CPUWM status with monitor freshness and sanitized counts/enforcement indicators; zero extra scopes never implies idle. Desktop save state remains unverifiable and session blockers are protected.
+- [ ] External session/save acknowledgements and supported CPUWM/Atlas job drain confirmation before any future safe shutdown workflow.
 - [ ] Real timer execution after explicit future approval and activation gates.
 - [ ] Service controls: allowlisted systemd start/stop/restart.
 - [ ] Read-only processes, long-running jobs, logs and errors.
@@ -62,4 +64,4 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 ## Approval gate
 No real system shutdown, restart, package update, fan override or disruptive job action without explicit approval, preflight checks and a rollback plan. Test dry-runs before enabling new controls.
 
-Current power controls are simulation only and have not been deployed by this iteration. Next activation gates: explicit future approval for real actions, a second confirmation, a fresh safety check at the deadline, verified CPUWM active-job checks without bypassing the manager, and protection for unsaved desktop work. Never perform a blind shutdown of unsaved work. Cancellation and failure behavior must be verified before any real power execution is enabled. Continue iPhone verification of sound/CPUWM receipts, LG pairing and other remote operations separately.
+The read-only power safety and cancelable timer preview are deployed to the private Hub, but no power execution has been enabled. Next activation gates: explicit future approval for real actions, a second confirmation, a fresh safety check at the deadline, verified CPUWM active-job checks without bypassing the manager, and protection for unsaved desktop work. Never perform a blind shutdown of unsaved work. Cancellation and failure behavior must be verified before any real power execution is enabled. Continue iPhone verification of sound/CPUWM receipts, LG pairing and other remote operations separately.
