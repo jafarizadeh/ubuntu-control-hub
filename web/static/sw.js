@@ -1,5 +1,5 @@
 "use strict";
-const CACHE = "ubuntu-control-shell-v13-cpu-details";
+const CACHE = "ubuntu-control-shell-v14-adaptive-cpu-v07";
 const ASSETS = ["/", "/index.html", "/style.css", "/ios-controls.css", "/ios-ui.js", "/cpu-details.css", "/cpu-details.js", "/app.js", "/icon.svg", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest", "/assets/ubuntu-logo.svg", "/assets/monitor.svg", "/assets/cpu.svg", "/assets/wifi.svg", "/assets/wifi-off.svg", "/assets/power.svg", "/assets/ubuntu-on.svg", "/assets/ubuntu-off.svg", "/assets/monitor-on.svg", "/assets/monitor-off.svg"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()));

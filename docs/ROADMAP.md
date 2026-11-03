@@ -29,6 +29,7 @@ Observed state: 2026-11-03. Checked items are implemented or directly observed i
 - [x] Live CPU, GPU, RAM, disk, temperature, fans and uptime telemetry.
 - [x] Dedicated CPU Details view: clickable Dashboard CPU tile, per-logical-core grid and red history graph.
 - [x] Unprivileged 1-second /proc/stat sampler; 90-second bounded rolling buffer and signed delivery.
+- [x] Owner-only adaptive CPU Details polling every 2 seconds with temporary faster signed Agent reports; idle UI/Agent intervals unchanged.
 - [x] CPU model, clock speed, physical/logical core count, governor and load averages with no privileged commands.
 - [ ] Verify CPU Details in Safari on an actual iPhone (mobile Chromium and responsive checks available).
 

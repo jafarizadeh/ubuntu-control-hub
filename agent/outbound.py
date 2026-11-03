@@ -101,6 +101,14 @@ def report_once(base: str, identity: Ed25519PrivateKey, *, payload: dict | None 
     return result
 
 
+def next_report_interval(result: dict, normal_seconds: int) -> int:
+    """Only the verified Pi response can opt into the fixed 2s CPU mode.
+
+    No arbitrary server-supplied period, command, or user input is accepted.
+    """
+    return 2 if isinstance(result, dict) and result.get("cpu_watch_active") is True else normal_seconds
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
@@ -127,17 +135,20 @@ def main() -> int:
     sampler.start()
     print("Ubuntu Control outbound signed telemetry started (1-second CPU samples)", flush=True)
     failures = 0
+    current_interval = interval
     try:
         while True:
             try:
-                report_once(base, identity, executor=executor, cpu_sampler=sampler)
+                result = report_once(base, identity, executor=executor, cpu_sampler=sampler)
+                current_interval = next_report_interval(result, interval)
                 failures = 0
             except (OSError, ValueError, RuntimeError, error.URLError,
                     json.JSONDecodeError) as exc:
                 failures += 1
+                current_interval = interval
                 if failures in (1, 5, 20):
                     print("Report failure: " + type(exc).__name__, file=sys.stderr, flush=True)
-            time.sleep(interval if failures == 0 else min(max(interval, 5) * 2, 60))
+            time.sleep(current_interval if failures == 0 else min(max(interval, 5) * 2, 60))
     finally:
         sampler.stop()
 

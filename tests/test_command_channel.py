@@ -179,10 +179,11 @@ class SignedCommandTests(unittest.TestCase):
         handler.headers["Content-Length"] = str(len(req.data))
         handler.rfile = io.BytesIO(req.data)
         handler._json = mock.Mock()
-        with mock.patch.object(server, "BROKER", relay):
+        with mock.patch.object(server, "BROKER", relay), mock.patch.object(server.CPU_WATCH, "active", return_value=False):
             handler.do_POST()
             response = handler._json.call_args.args[0]
-            self.assertEqual(set(response), {"ok", "command"})
+            self.assertEqual(set(response), {"ok", "command", "cpu_watch_active"})
+            self.assertIs(response["cpu_watch_active"], False)
             self.assertEqual(response["command"]["id"], items[0]["id"])
             self.assertEqual(relay.commands.status(items[1]["id"]), "queued")
             handler.rfile = io.BytesIO(req.data)

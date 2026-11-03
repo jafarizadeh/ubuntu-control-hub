@@ -19,6 +19,7 @@ const app = {
   session: null, busy: false, timer: null, toastTimer: null,
   tab: "dashboard", lastStatus: null, visibleMetrics: loadMetrics(),
   canControl: false, commandBusy: false,
+  cpuWatchTimer: null, cpuWatchBusy: false, cpuFastActive: false, cpuWatchFailures: 0,
 };
 
 const el = (id) => document.getElementById(id);
@@ -428,8 +429,67 @@ async function refreshStatus(manual = false) {
   }
 }
 
+function stopCpuWatch() {
+  if (app.cpuWatchTimer !== null) {
+    clearInterval(app.cpuWatchTimer);
+    app.cpuWatchTimer = null;
+  }
+  app.cpuFastActive = false;
+  if (window.UbuntuCPU.setSyncMode) window.UbuntuCPU.setSyncMode(false);
+}
+
+async function refreshCpuWatch() {
+  if (app.tab !== "cpu" || document.hidden || app.cpuWatchBusy) return;
+  if (!app.canControl) {
+    stopCpuWatch();
+    return;
+  }
+  app.cpuWatchBusy = true;
+  try {
+    if (!app.session) app.session = await api("/api/session");
+    const response = await api("/api/cpu/watch", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "X-UC-CSRF": app.session.csrf},
+      body: "{}",
+    });
+    if (app.tab !== "cpu" || document.hidden) return;
+    app.cpuWatchFailures = 0;
+    app.cpuFastActive = response.watch_active === true;
+    if (window.UbuntuCPU.setSyncMode) window.UbuntuCPU.setSyncMode(app.cpuFastActive);
+    const age = Date.now() / 1000 - Number(response.last_agent_report_unix || 0);
+    if (response.control_agent === "online" && response.metrics?.cpu &&
+        age >= -15 && age <= 45) {
+      window.UbuntuCPU.update(response.metrics);
+    } else {
+      window.UbuntuCPU.stale();
+    }
+  } catch {
+    app.cpuWatchFailures++;
+    if (app.cpuWatchFailures >= 3) {
+      // Failed authentication or network: fall back to ordinary 15s Dashboard
+      // reporting. Never continue requesting an unavailable fast endpoint.
+      stopCpuWatch();
+      if (window.UbuntuCPU.setSyncMode) window.UbuntuCPU.setSyncMode(false);
+    }
+  } finally {
+    app.cpuWatchBusy = false;
+  }
+}
+
+function startCpuWatch() {
+  if (app.tab !== "cpu" || document.hidden || app.cpuWatchTimer !== null) return;
+  if (!app.canControl) {
+    if (window.UbuntuCPU.setSyncMode) window.UbuntuCPU.setSyncMode(false);
+    return;
+  }
+  app.cpuWatchFailures = 0;
+  void refreshCpuWatch();
+  app.cpuWatchTimer = setInterval(() => { void refreshCpuWatch(); }, 2000);
+}
+
 function switchTab(tab) {
   if (!["dashboard", "control", "history", "cpu"].includes(tab)) return;
+  if (app.tab === "cpu" && tab !== "cpu") stopCpuWatch();
   app.tab = tab;
   for (const key of ["dashboard", "control", "history", "cpu"]) el("view-" + key).hidden = key !== tab;
   document.body.classList.toggle("cpu-details-open", tab === "cpu");
@@ -444,6 +504,10 @@ function switchTab(tab) {
   if (tab === "cpu") {
     window.UbuntuCPU.onOpen();
     void refreshStatus();
+    // Recheck owner capability if navigation occurs before initial login.
+    void refreshControlAccess().then(() => {
+      if (app.tab === "cpu") startCpuWatch();
+    });
   }
 }
 
@@ -572,13 +636,27 @@ async function init() {
   });
   el("refresh-btn").addEventListener("click", () => refreshStatus(true));
   el("reload-history").addEventListener("click", loadHistory);
-  window.addEventListener("online", () => refreshStatus());
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshStatus(); });
+  window.addEventListener("online", () => {
+    void refreshStatus();
+    if (app.tab === "cpu") startCpuWatch();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopCpuWatch();
+    } else {
+      void refreshStatus();
+      if (app.tab === "cpu") startCpuWatch();
+    }
+  });
   try { app.session = await api("/api/session"); }
   catch { app.session = null; }
   await refreshStatus();
   await refreshControlAccess();
-  app.timer = setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
+  // Keep the Dashboard on 15s. CPU Details uses a separate 2s owner-only
+  // lightweight watch; ordinary polling remains the safe fallback.
+  app.timer = setInterval(() => {
+    if (!document.hidden && (app.tab !== "cpu" || !app.cpuFastActive)) refreshStatus();
+  }, 15000);
   if ("serviceWorker" in navigator && window.isSecureContext) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }

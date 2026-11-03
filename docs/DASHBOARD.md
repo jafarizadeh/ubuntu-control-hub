@@ -79,3 +79,24 @@ governor, architecture, and 1/5/15-minute load averages. Unavailable readings
 display a dash. If signed CPU telemetry goes stale, core values and history
 are cleared instead of showing old data as live. The red line always uses real
 sample percentages; it is not a mock graph.
+
+## Adaptive CPU Details refresh (v0.7)
+
+Core sampling on Ubuntu remains every 1 second. While the authenticated owner
+has CPU Details open in the foreground, the page sends a CSRF-protected watch
+request every 2 seconds to the private Raspberry Pi hub. The watch endpoint
+returns the latest signed Ubuntu CPU/GPU snapshot directly from memory; it
+bypasses the 7-second general status cache and avoids additional LG/webOS polls.
+
+An in-memory watch lease expires 7 seconds after the last authorized
+request. The next signed Ubuntu Agent response includes a fixed boolean
+cpu_watch_active, never an arbitrary server-supplied interval. When active,
+the Agent sends signed telemetry every 2 seconds; otherwise it returns to its
+configured normal 10-second interval. On first opening CPU Details, the faster
+Agent response may take up to one ordinary report interval to begin.
+
+Closing CPU Details, changing tabs or moving Safari to the background stops
+fast polling. The rest of the dashboard continues at 15-second refresh.
+Unauthorized or failed watch requests fall back to ordinary updates; there is
+no new public listener, shell or privileged command. CPU graph values remain
+real /proc/stat samples from Ubuntu.

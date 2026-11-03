@@ -25,6 +25,7 @@ from urllib.parse import urlsplit
 from agent_broker import AgentBroker
 from power_preview import PreviewStore
 from tv_power import classify_power_reply
+from cpu_watch import CPUWatch
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STATIC = ROOT / "web" / "static"
@@ -35,6 +36,7 @@ TV_DATABASE = CONFIG / ".aiopylgtv.sqlite"
 STATUS_COMMAND = ROOT / "bin" / "status.py"
 BROKER = AgentBroker(CONFIG / "desktop_agent.pub", state_file=ROOT / "data" / "command-state.sqlite")
 PREVIEWS = PreviewStore(ROOT / "data" / "power-preview.sqlite")
+CPU_WATCH = CPUWatch(ttl_seconds=7)
 OPERATOR = CONFIG / "operator.json"
 WOL_COMMAND = ROOT / "bin" / "wake.py"
 DEVICE_INFO = json.loads((CONFIG / "devices.json").read_text())
@@ -76,7 +78,7 @@ def status():
             except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired):
                 pass
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "0.4.1", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "0.7.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -267,7 +269,7 @@ def preview_response(result):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/0.4.1"
+    server_version = "UbuntuControl/0.7"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -343,7 +345,7 @@ class Handler(BaseHTTPRequestHandler):
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "0.4.1", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "0.7.0", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -386,10 +388,12 @@ class Handler(BaseHTTPRequestHandler):
                 if not BROKER.accept(raw):
                     return self._json({"error": "Invalid agent report"}, 400)
                 result = BROKER.commands.report_response(json.loads(raw).get("ack"))
+                result["cpu_watch_active"] = CPU_WATCH.active()
             except (ValueError, OSError, sqlite3.Error):
                 return self._json({"error": "Agent report unavailable"}, 503)
             return self._json(result)
-        if path in {"/api/commands", "/api/power/preview", "/api/power/cancel"} and not can_control(self.headers):
+        if path in {"/api/commands", "/api/power/preview", "/api/power/cancel",
+                    "/api/cpu/watch"} and not can_control(self.headers):
             return self._json({"error": "Control denied"}, 403)
         origin = self.headers.get("Origin", "")
         if not check_origin(self.headers.get("Host", ""), origin):
@@ -410,6 +414,24 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             return self._json({"error": "Invalid JSON"}, 400)
         path = urlsplit(self.path).path
+        if path == "/api/cpu/watch":
+            # Owner-only, CSRF-protected keepalive; never routes power/CPU actions.
+            # A separate signed agent report can now use a 2-second interval.
+            if request:
+                return self._json({"error": "Empty JSON body required"}, 400)
+            CPU_WATCH.touch()
+            state = BROKER.desktop_state()
+            report = state.get("metrics", {}) if state.get("control_agent") == "online" else {}
+            return self._json({
+                "watch_active": True,
+                "control_agent": state.get("control_agent"),
+                "last_agent_report_unix": state.get("last_agent_report_unix"),
+                "metrics": {
+                    "cpu": report.get("cpu") if isinstance(report, dict) else None,
+                    "gpus": report.get("gpus", []) if isinstance(report, dict) else [],
+                    "checked_at_unix": report.get("checked_at_unix") if isinstance(report, dict) else None,
+                },
+            })
         if path in {"/api/power/preview", "/api/power/cancel"}:
             try:
                 result = PREVIEWS.create(request) if path.endswith("/preview") else PREVIEWS.cancel(request)
@@ -503,7 +525,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v0.4.1 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v0.7 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 

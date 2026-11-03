@@ -189,9 +189,15 @@
     paintHistory();
   }
 
-  function init() {
-    window.addEventListener("resize", () => {if(!$("view-cpu").hidden) paintHistory()});
+  function setSyncMode(fast) {
+    $("cpu-details-source").textContent = fast
+      ? "2s live sync · 1s core sampling" : "Standard 15s sync · 1s core sampling";
   }
 
-  window.UbuntuCPU={init, update, stale, onOpen:paintHistory};
+  function init() {
+    window.addEventListener("resize", () => {if(!$("view-cpu").hidden) paintHistory()});
+    setSyncMode(false);
+  }
+
+  window.UbuntuCPU={init, update, stale, onOpen:paintHistory, setSyncMode};
 })();
