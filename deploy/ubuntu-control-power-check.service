@@ -11,7 +11,3 @@ NoNewPrivileges=true
 UMask=0077
 PrivateTmp=true
 ProtectSystem=full
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-LockPersonality=true

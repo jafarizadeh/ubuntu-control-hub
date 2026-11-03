@@ -291,6 +291,28 @@ class TrustedPowerRoutingTests(unittest.TestCase):
             self.assertNotIn("--force",argv)
             self.assertEqual(executor.ack["status"],"succeeded")
 
+    def test_privileged_power_units_are_exact_and_agent_is_not_elevated(self):
+        expected={
+            "shutdown":"--execute shutdown unsaved-loss-accepted",
+            "restart":"--execute restart unsaved-loss-accepted",
+            "check":"--check",
+        }
+        for label,action in expected.items():
+            unit=(ROOT/"deploy"/("ubuntu-control-power-"+label+".service")).read_text()
+            with self.subTest(unit=label):
+                self.assertIn("User=root",unit)
+                self.assertIn("NoNewPrivileges=true",unit)
+                self.assertIn("PrivateTmp=true",unit)
+                self.assertIn("ProtectSystem=full",unit)
+                self.assertIn("power_execute.py "+action,unit)
+                self.assertNotIn("--force",unit)
+        polkit=(ROOT/"deploy/51-ubuntu-control-power.rules.example").read_text()
+        self.assertIn('action.lookup("verb") !== "start"',polkit)
+        self.assertIn("ubuntu-control-power-shutdown.service",polkit)
+        self.assertIn("ubuntu-control-power-restart.service",polkit)
+        self.assertIn("ubuntu-control-power-check.service",polkit)
+        self.assertIn('subject.user !== "__OWNER_USER__"',polkit)
+
     def test_root_helper_never_runs_after_safety_changes(self):
         with mock.patch.object(power_execute.os,"geteuid",return_value=0),\
              mock.patch.dict(os.environ,{"SUDO_USER":"mehdi"}),\

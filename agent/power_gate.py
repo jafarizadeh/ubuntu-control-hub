@@ -147,10 +147,32 @@ def inspect_cpuwm(owner=None, owner_home=None, now=None):
         if not stat.S_ISREG(info.st_mode) or script.parent.is_symlink():
             return False
         cmd=["/usr/bin/python3","-B",str(script),"status"]
+        # Drop from root to the Atlas database owner directly in the child,
+        # without PAM/runuser or a setuid executable. This is compatible
+        # with NoNewPrivileges=true on the root-owned fixed systemd unit.
+        kwargs={}
         if os.geteuid()==0:
-            cmd=["/usr/sbin/runuser","-u",owner,"--",*cmd]
+            account=pwd.getpwnam(owner)
+            uid=account.pw_uid
+            kwargs={
+                "user":uid,
+                "group":account.pw_gid,
+                # Dropping UID alone retains the root service's HOME and DBus
+                # runtime, which makes CPUWM read the *wrong* account state.
+                # Supply only the verified Atlas owner's own local session.
+                "env":{
+                    "HOME":account.pw_dir,
+                    "USER":owner,
+                    "LOGNAME":owner,
+                    "PATH":"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin",
+                    "XDG_RUNTIME_DIR":"/run/user/"+str(uid),
+                    "DBUS_SESSION_BUS_ADDRESS":"unix:path=/run/user/"+str(uid)+"/bus",
+                    "LC_ALL":"C",
+                },
+            }
         completed=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
-                                 timeout=CPUWM_STATUS_TIMEOUT,check=False,text=True)
+                                 timeout=CPUWM_STATUS_TIMEOUT,check=False,text=True,
+                                 **kwargs)
         if completed.returncode or len(completed.stdout)>32768:
             return False
         body=json.loads(completed.stdout,object_pairs_hook=_unique_object)
