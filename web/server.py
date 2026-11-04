@@ -80,7 +80,7 @@ def status():
             except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired):
                 pass
         report["desktop"].update(BROKER.desktop_state())
-        report["hub"] = {"version": "1.1.0", "control_mode": "private_tailnet", "listen": "localhost"}
+        report["hub"] = {"version": "1.2.0", "control_mode": "private_tailnet", "listen": "localhost"}
         _last_report = (time.monotonic(), report)
         return report
 
@@ -451,7 +451,7 @@ def preview_response(result):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuControl/1.1"
+    server_version = "UbuntuControl/1.2"
 
     def log_message(self, fmt, *args):
         # No cookies or action payloads are included.
@@ -531,7 +531,7 @@ class Handler(BaseHTTPRequestHandler):
             cookie_value = self._cookie_token() or secrets.token_urlsafe(32)
             return self._json({"csrf": self._token(cookie_value)}, cookie=cookie_value)
         if path == "/api/health":
-            return self._json({"ok": True, "version": "1.1.0", "agent": BROKER.desktop_state()["control_agent"]})
+            return self._json({"ok": True, "version": "1.2.0", "agent": BROKER.desktop_state()["control_agent"]})
         if path == "/api/status":
             try:
                 return self._json(status())
@@ -577,9 +577,25 @@ class Handler(BaseHTTPRequestHandler):
                 if "command" not in result:
                     # Dispatch only AFTER an authenticated fresh Ubuntu report.
                     # At most once, and only if the owner-armed deadline is due.
+                    safety=power_safety()
+                    gate=safety.get("real_power") or {}
+                    # A clear loss of Atlas owner-stop or an active model
+                    # job is a hard blocker; stale CPUWM/telemetry is
+                    # transient and gets a bounded final recheck window.
+                    hard_blocked=(
+                        safety.get("status")=="fresh"
+                        and (
+                            gate.get("atlas_owner_paused") is False
+                            or type(gate.get("codex_owner_paused_count")) is int
+                            and gate["codex_owner_paused_count"] < 3
+                            or type(gate.get("active_jobs")) is int
+                            and gate["active_jobs"] > 0
+                        )
+                    )
                     REAL_POWER.dispatch_due(
-                        live_power_ready(),
+                        live_power_ready(safety),
                         BROKER.commands.enqueue_power,
+                        definitive_block=hard_blocked,
                     )
                     result = BROKER.commands.report_response(None)
                 result["cpu_watch_active"] = CPU_WATCH.active()
@@ -746,7 +762,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.daemon_threads = True
-    print(f"Ubuntu Control Hub v1.1 on 127.0.0.1:{PORT} (private only)", flush=True)
+    print(f"Ubuntu Control Hub v1.2 on 127.0.0.1:{PORT} (private only)", flush=True)
     server.serve_forever(poll_interval=0.5)
 
 

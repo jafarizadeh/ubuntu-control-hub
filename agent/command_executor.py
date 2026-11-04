@@ -21,7 +21,11 @@ def valid_command(command):
     fields = {"id", "action", "value", "created_at", "expires_at"}
     if action == "cpuwm.set_profile":
         fields.add("confirm")
-    if action in ("power.shutdown", "power.restart"):
+    close_actions={"desktop.close_documents","desktop.close_terminals"}
+    open_actions={"desktop.open_terminal","desktop.start_gpt_remote"}
+    if action in open_actions:
+        fields.add("confirm")
+    if action in ("power.shutdown", "power.restart") or action in close_actions:
         fields.update(("confirm","ack_unsaved_loss"))
     if set(command) != fields:
         return False
@@ -36,7 +40,11 @@ def valid_command(command):
             or (action == "cpuwm.set_profile" and type(value) is str
                 and value in {"quiet", "balanced", "performance"} and command["confirm"] is True)
             or (action in {"power.shutdown","power.restart"} and value is None
-                and command["confirm"] is True and command["ack_unsaved_loss"] is True))
+                and command["confirm"] is True and command["ack_unsaved_loss"] is True)
+            or (action in close_actions and value is None
+                and command["confirm"] is True and command["ack_unsaved_loss"] is True)
+            or (action in open_actions and value is None
+                and command["confirm"] is True))
 
 
 class CommandExecutor:
@@ -130,6 +138,21 @@ class CommandExecutor:
                 if not manager.is_file() or manager.is_symlink():
                     raise ValueError("Workload manager unavailable")
                 argv = [sys.executable, str(manager), "profile", value]
+            elif action.startswith("desktop.") and action in {
+                    "desktop.close_documents","desktop.close_terminals",
+                    "desktop.open_terminal","desktop.start_gpt_remote"}:
+                script=Path(__file__).resolve().with_name("desktop_actions.py")
+                if not script.is_file() or script.is_symlink():
+                    raise ValueError("Restricted GNOME desktop action helper unavailable")
+                if script.stat().st_uid != os.geteuid() or script.stat().st_mode & 0o022:
+                    raise ValueError("Unsafe desktop helper ownership or permissions")
+                route={
+                    "desktop.close_documents":"--close-documents",
+                    "desktop.close_terminals":"--close-terminals",
+                    "desktop.open_terminal":"--open-terminal",
+                    "desktop.start_gpt_remote":"--start-gpt-remote",
+                }
+                argv=[sys.executable,str(script),route[action]]
             elif action in ("power.shutdown","power.restart"):
                 # The outbound Agent intentionally retains NoNewPrivileges=true.
                 # Systemd starts a fixed root-owned one-shot service through

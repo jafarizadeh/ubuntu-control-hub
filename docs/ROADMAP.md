@@ -95,3 +95,13 @@ The read-only power safety and cancelable timer preview are deployed to the priv
 - [x] Restore the actual operation/delay of an armed timer after reload.
 - [x] Independent Codex xhigh source audit and synthetic browser/backend regressions.
 - [ ] Verify on a physical iPhone Safari and perform a user-initiated power cycle when appropriate.
+
+## Files & Folders (v1.2)
+
+- [x] Owner-confirmed close of supported GNOME documents and browser windows, with explicit permanent data-loss warning.
+- [x] Constrained browser-main SIGTERM fallback for native Wayland browsers (no killall).
+- [x] Owner-confirmed terminal closure using AT-SPI application actions.
+- [x] Local Ptyxis terminal and Desktop Commander Remote launcher, preserving any existing connector.
+- [x] Privacy-preserving window counts and last-action results in signed telemetry.
+- [x] 30-second bounded final safety recheck for real Power timer without bypassing Atlas blockers.
+- [ ] Verify actual GUI action outcomes and power cycle when the owner deliberately invokes them on an iPhone.

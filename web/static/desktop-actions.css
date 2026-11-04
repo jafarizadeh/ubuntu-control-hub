@@ -1,0 +1,31 @@
+/* Ubuntu Control — iPhone-first Files & Folders, limited GNOME actions. */
+.desktop-actions-card{border-color:#deebef}
+.desktop-actions-card .control-icon svg{width:22px;height:22px;color:#2b777a}
+.desktop-window-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:20px 0 13px}
+.desktop-window-counts>div{border:1px solid #e3ebef;background:linear-gradient(150deg,#f7fafb,#fff);padding:13px 10px;border-radius:13px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.desktop-window-counts small{font-size:10px;color:#8295a4;font-weight:620;line-height:1.25}
+.desktop-window-counts strong{font-size:24px;line-height:1.15;letter-spacing:-.7px;color:#244957;font-weight:780;font-variant-numeric:tabular-nums}
+.desktop-actions-list{border:1px solid #e3ebf0;border-radius:17px;overflow:hidden;background:#fff}
+.desktop-action-item{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:14px}
+.desktop-action-item+.desktop-action-item{border-top:1px solid #eff2f5}
+.desktop-action-description{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.desktop-action-description strong{font-size:12px;font-weight:790;color:#284559;line-height:1.35}
+.desktop-action-description small{font-size:10px;color:#8b9cac;line-height:1.45}
+.desktop-action-button{min-width:74px;max-width:95px;min-height:42px;border-radius:12px;font-weight:780;font-size:11px;padding:8px 10px;flex-shrink:0;white-space:nowrap}
+.desktop-action-destructive{color:#ad5a62;background:#fff4f4;border:1px solid #efdadc}
+.desktop-action-destructive:hover:not(:disabled){background:#fae9eb}
+.desktop-action-primary{background:#e1f2ee;color:#166e68;border:1px solid #c5e5dc}
+.desktop-action-primary:hover:not(:disabled){background:#d1ede5}
+.desktop-action-button:disabled{opacity:.48;cursor:not-allowed}
+.desktop-open-plain{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;margin:13px 0 0;min-height:44px;border:1px solid #dce9ec;border-radius:12px;background:#f7fbfb;color:#357477;font-size:11px;font-weight:760}
+.desktop-open-plain svg{width:17px;height:17px}
+.desktop-open-plain:disabled{opacity:.46;cursor:not-allowed}
+.desktop-actions-receipt{margin:13px 0 0;padding:10px 12px;border-radius:11px;background:#f5f9fa;color:#678493;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:390px){
+ .desktop-action-item{padding:12px 10px;gap:8px}
+ .desktop-window-counts{gap:6px}
+ .desktop-window-counts>div{padding:12px 8px}
+ .desktop-window-counts small{font-size:9px}
+ .desktop-action-button{min-width:65px;max-width:84px;font-size:10px;padding:7px 7px}
+ .desktop-action-description strong{font-size:11px}
+}

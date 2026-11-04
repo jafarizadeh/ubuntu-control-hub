@@ -2,7 +2,7 @@
 
 A private English-language, light-themed, left-to-right PWA for remotely managing Ubuntu Desktop and LG webOS TV through an always-on Raspberry Pi.
 
-**MVP status (v1.1 UI):** The Ubuntu-first PWA remains privately
+**MVP status (v1.2 UI):** The Ubuntu-first PWA remains privately
 available through Tailscale HTTPS on the Raspberry Pi. It displays live signed
 Ubuntu metrics, iOS-style CPU Details, LG webOS power controls and Wake-on-LAN.
 A separate owner-authenticated real-power workflow offers Shutdown, Restart and
@@ -42,6 +42,7 @@ The backend is Python, and the frontend is static HTML/CSS/JavaScript with no bu
 - agent/power_gate.py and agent/power_execute.py: fail-closed real power safety gate and fixed privileged helper, with no automatic file saving or process kill.
 - deploy/ubuntu-control-power-*.service and deploy/51-ubuntu-control-power.rules.example: root-owned restricted one-shot power services and narrowly scoped PolicyKit authorization; the outbound Agent keeps NoNewPrivileges=true.
 - web/power_schedule.py: durable owner-armed, cancelable real timer and at-most-once signed Ubuntu dispatch.
+- agent/desktop_actions.py and agent/gpt_remote_console.py: GNOME Wayland desktop actions and local GPT Remote terminal (see docs/DESKTOP_MANAGEMENT.md).
 - agent/atlas_guard.py: read-only Atlas SQLite proof separating idle/RUN from owner STOP and verifying future per-Codex stop acknowledgements; no stopping or power action (see docs/ATLAS_POWER_POLICY.md and docs/ATLAS_CODEX_STOP_BRIDGE.md).
 - agent/codex_stop_attestation.py: fail-closed 15-second, reboot-bound 3-worker owner-stop receipt verifier for the future Atlas producer; current Atlas does not publish these receipts.
 - web/power_preview.py: persisted timer simulation, separate from the command queue.

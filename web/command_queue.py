@@ -12,7 +12,14 @@ def validate_action(value):
     if not isinstance(value, dict):
         raise ValueError("Invalid command")
     action = value.get("action")
-    expected = {"action", "value", "confirm"} if action == "cpuwm.set_profile" else {"action", "value"}
+    close_actions={"desktop.close_documents","desktop.close_terminals"}
+    open_actions={"desktop.open_terminal","desktop.start_gpt_remote"}
+    if action in close_actions:
+        expected={"action","value","confirm","ack_unsaved_loss"}
+    elif action in open_actions or action=="cpuwm.set_profile":
+        expected={"action","value","confirm"}
+    else:
+        expected={"action","value"}
     if set(value) != expected:
         raise ValueError("Invalid command fields")
     argument = value["value"]
@@ -22,6 +29,10 @@ def validate_action(value):
         return
     if (action == "cpuwm.set_profile" and type(argument) is str
             and argument in {"quiet", "balanced", "performance"} and value["confirm"] is True):
+        return
+    if action in close_actions and argument is None and value["confirm"] is True and value["ack_unsaved_loss"] is True:
+        return
+    if action in open_actions and argument is None and value["confirm"] is True:
         return
     raise ValueError("Command not allowed")
 

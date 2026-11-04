@@ -150,7 +150,10 @@
       !available&&schedule.state==="absent"?"Timer status unavailable":
       possibleArm?"Request outcome unknown · check or cancel":states[schedule.state]||"Timer status unavailable");
     put("live-timer-detail",schedule.state==="armed"
-      ?"Cancel before dispatch · the Pi and Ubuntu recheck safety":schedule.detail||"No power is scheduled or pending");
+      ?(Number(schedule.remaining_seconds)===0
+        ? "Final signed safety verification · cancel remains available (max 30s)"
+        : "Cancel before dispatch · the Pi and Ubuntu recheck safety")
+      :schedule.detail||"No power is scheduled or pending");
     const remaining=Math.max(0,Math.ceil(lastRemaining-(performance.now()-lastTick)/1000));
     const two=n=>String(n).padStart(2,"0"),h=Math.floor(remaining/3600),m=Math.floor(remaining%3600/60),sec=remaining%60;
     put("live-timer-countdown",schedule.state==="armed"&&available

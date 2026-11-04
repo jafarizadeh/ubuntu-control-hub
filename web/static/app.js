@@ -138,6 +138,7 @@ function paintWithoutUbuntu() {
     "metric-network", "metric-audio", "metric-performance", "control-volume", "control-profile"];
   empty.forEach((id) => put(id, "—"));
   window.UbuntuCPU.stale();
+  window.UbuntuDesktopUI.stale();
   put("hero-cpu-model", "No fresh Ubuntu readings");
   put("hero-memory-detail", "—");
   put("hero-gpu-detail", "—");
@@ -170,6 +171,7 @@ function paintWithoutUbuntu() {
 function paintUbuntu(report) {
   const cpu = report.cpu || {};
   window.UbuntuCPU.update(report);
+  window.UbuntuDesktopUI.render(report.desktop_actions || null);
   const mem = report.memory || {};
   const disk = report.storage || {};
   const gpus = Array.isArray(report.gpus) ? report.gpus : [];
@@ -631,6 +633,7 @@ async function init() {
   window.UbuntuIOS.init();
   window.UbuntuCPU.init();
   window.UbuntuRealPower.init();
+  window.UbuntuDesktopUI.init();
   el("open-cpu-details").addEventListener("click", () => switchTab("cpu"));
   el("cpu-back-button").addEventListener("click", () => switchTab("dashboard"));
   initCustomization();
@@ -690,6 +693,7 @@ function syncControls() {
   el("profile-selector").disabled = !profileReady;
   el("profile-picker-open").disabled = !profileReady;
   el("apply-profile").disabled = !profileReady;
+  window.UbuntuDesktopUI.refresh();
   put("mute-toggle", report.audio?.muted ? "Unmute" : "Mute");
   put("audio-capability", audioReady ? "Control enabled" : report.audio?.available ? "Monitoring" : "Unavailable");
   put("performance-capability", profileReady ? "Control enabled" : report.workload_manager?.available ? "Monitoring" : "Unavailable");
@@ -760,7 +764,10 @@ async function submitCommand(action, value, label, confirmed = false) {
   try {
     if (!app.session) app.session = await api("/api/session");
     const payload = {action, value};
-    if (action === "cpuwm.set_profile") payload.confirm = confirmed;
+    if (action === "cpuwm.set_profile" || action.startsWith("desktop.")) payload.confirm = confirmed;
+    if (action === "desktop.close_documents" || action === "desktop.close_terminals") {
+      payload.ack_unsaved_loss = confirmed;
+    }
     const response = await api("/api/commands", {
       method: "POST",
       headers: {"Content-Type": "application/json", "X-UC-CSRF": app.session.csrf},

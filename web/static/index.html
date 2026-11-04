@@ -15,9 +15,11 @@
   <link rel="stylesheet" href="/ios-controls.css">
   <link rel="stylesheet" href="/cpu-details.css">
   <link rel="stylesheet" href="/power-live.css">
+  <link rel="stylesheet" href="/desktop-actions.css">
   <script src="/ios-ui.js" defer></script>
   <script src="/cpu-details.js" defer></script>
   <script src="/power-live.js" defer></script>
+  <script src="/desktop-actions.js" defer></script>
   <script src="/app.js" defer></script>
   <title>Ubuntu Control</title>
 </head>
@@ -49,7 +51,7 @@
       <button class="nav-item" type="button" data-tab="history"><span aria-hidden="true">◷</span> History</button>
       <div class="sidebar-bottom">
         <span class="privacy-dot"></span> Private via Tailscale
-        <div class="side-version">Ubuntu Control v1.1</div>
+        <div class="side-version">Ubuntu Control v1.2</div>
       </div>
     </nav>
     <main id="main">
@@ -317,17 +319,39 @@
             <button class="btn btn-primary btn-wide" id="apply-profile" type="button" disabled>Apply profile</button>
             <p class="control-note">Changes are made through the existing CPU &amp; GPU Workload Manager and may affect active computing jobs. Each change requires confirmation.</p>
           </article>
-          <article class="control-card panel">
-            <div class="control-card-header"><div class="control-icon">▤</div><div><h3>Applications & files</h3><p>Running applications and open documents</p></div><span class="feature-state">Planned</span></div>
-            <button class="btn btn-outline btn-wide" type="button" disabled>View running applications</button>
-            <button class="btn btn-outline btn-wide" type="button" disabled>Close selected applications</button>
-            <p class="control-note">Closing apps will require selection and confirmation to protect unsaved work and running jobs.</p>
-          </article>
-          <article class="control-card panel">
-            <div class="control-card-header"><div class="control-icon">⌘</div><div><h3>Terminal & GPT Remote</h3><p>Authorized remote administration</p></div><span class="feature-state">Planned</span></div>
-            <button class="btn btn-outline btn-wide" type="button" disabled>Open remote terminal</button>
-            <button class="btn btn-outline btn-wide" type="button" disabled>Manage GPT remote access</button>
-            <p class="control-note">No unrestricted remote shell is exposed through the phone dashboard. Remote access must use an authenticated, audited session.</p>
+          <article class="control-card panel desktop-actions-card" id="desktop-actions-card" aria-label="Files, browser pages and terminals">
+            <div class="control-card-header">
+              <div class="control-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 7.5h6l2 2h9v9.5H3.5z"/><path d="M3.5 7.5V5h6.5l2 2h8.5v2.5"/></svg></div>
+              <div><h3>Files &amp; Folders</h3><p>Open documents, browser pages and terminal windows</p></div>
+              <span class="feature-state" id="desktop-actions-capability">Checking</span>
+            </div>
+            <div class="desktop-window-counts">
+              <div><small>Browser windows</small><strong id="desktop-browser-count">—</strong></div>
+              <div><small>Open documents</small><strong id="desktop-document-count">—</strong></div>
+              <div><small>Terminals</small><strong id="desktop-terminal-count">—</strong></div>
+            </div>
+            <div class="desktop-actions-list">
+              <div class="desktop-action-item">
+                <div class="desktop-action-description"><strong>Close files &amp; web pages</strong><small>Close open browser windows and supported document/file windows</small></div>
+                <button class="btn desktop-action-button desktop-action-destructive" id="desktop-close-documents" type="button" disabled>Close all</button>
+              </div>
+              <div class="desktop-action-item">
+                <div class="desktop-action-description"><strong>Close all terminals</strong><small>Request closure of terminal windows, including running shells</small></div>
+                <button class="btn desktop-action-button desktop-action-destructive" id="desktop-close-terminals" type="button" disabled>Close all</button>
+              </div>
+              <div class="desktop-action-item">
+                <div class="desktop-action-description">
+                  <strong>GPT Remote terminal</strong>
+                  <small id="desktop-gpt-status">Checking the existing Desktop Commander connection…</small>
+                </div>
+                <button class="btn desktop-action-button desktop-action-primary" id="desktop-start-gpt" type="button" disabled>Open</button>
+              </div>
+            </div>
+            <button type="button" class="desktop-open-plain" id="desktop-open-terminal" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 5 6-5 6M12 18h8"/></svg> Open a normal terminal
+            </button>
+            <p class="desktop-actions-receipt" role="status" aria-live="polite" id="desktop-actions-receipt">Waiting for Ubuntu desktop status…</p>
+            <p class="control-note">No files are deleted or saved. Closing windows can permanently lose unsaved work. Every destructive action requires an explicit confirmation. Running Atlas/Codex jobs remain protected.</p>
           </article>
           <article class="control-card panel">
             <div class="control-card-header"><div class="control-icon"><img src="/assets/monitor.svg" alt="" aria-hidden="true"></div><div><h3>LG webOS</h3><p>Pairing and display controls</p></div><span class="feature-state" id="tv-control-capability">Pairing needed</span></div>

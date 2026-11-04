@@ -109,7 +109,13 @@ class RepositorySmokeTests(unittest.TestCase):
         html = (ROOT / "web/static/index.html").read_text()
         for button in ("desktop-power-button", "volume-slider", "mute-toggle", "apply-profile"):
             self.assertIn('id="' + button + '"', html)
-        self.assertIn("Manage GPT remote access", html)
+        self.assertIn("Files &amp; Folders", html)
+        self.assertIn('id="desktop-close-documents"', html)
+        self.assertIn('id="desktop-close-terminals"', html)
+        self.assertIn('id="desktop-start-gpt"', html)
+        self.assertIn('id="desktop-open-terminal"', html)
+        self.assertIn("No files are deleted or saved", html)
+        self.assertNotIn("Manage GPT remote access", html)
         self.assertIn("CPU & GPU Workload Manager", html)
 
 

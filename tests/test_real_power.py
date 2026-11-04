@@ -152,21 +152,37 @@ class PowerScheduleTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             self.timer.cancel({"schedule_id":self.timer.status()["schedule_id"]})
 
-    def test_due_without_fresh_safety_fails_closed(self):
+    def test_transient_safety_failure_waits_for_fresh_signed_report(self):
+        created=self.timer.arm(self.arm)
+        send=mock.Mock(return_value={"id":"a"*32,"status":"queued"})
+        with mock.patch.object(power_schedule.time,"time",return_value=created["deadline"]):
+            first=self.timer.dispatch_due(False,send)
+            self.assertEqual(first["state"],"armed")
+            self.assertTrue(first["can_cancel"])
+            send.assert_not_called()
+        with mock.patch.object(power_schedule.time,"time",return_value=created["deadline"]+10):
+            result=self.timer.dispatch_due(True,send)
+        self.assertEqual(result["state"],"sent")
+        send.assert_called_once()
+
+    def test_definitive_atlas_resume_blocks_immediately(self):
         created=self.timer.arm(self.arm)
         send=mock.Mock()
         with mock.patch.object(power_schedule.time,"time",return_value=created["deadline"]):
-            result=self.timer.dispatch_due(False,send)
+            result=self.timer.dispatch_due(False,send,definitive_block=True)
         self.assertEqual(result["state"],"blocked")
+        self.assertIn("Atlas resumed",result["detail"])
         send.assert_not_called()
 
-    def test_expired_timer_cannot_execute_after_long_disconnection(self):
+    def test_final_safety_window_never_executes_after_long_disconnection(self):
         created=self.timer.arm(self.arm)
         send=mock.Mock()
         with mock.patch.object(power_schedule.time,"time",return_value=created["deadline"]+31):
             result=self.timer.dispatch_due(True,send)
-        self.assertIsNone(result)
-        self.assertEqual(self.timer.status()["state"],"expired")
+            self.assertIsNone(result)
+            expired=self.timer.status()
+        self.assertEqual(expired["state"],"blocked")
+        self.assertIn("30-second final verification",expired["detail"])
         send.assert_not_called()
 
     def test_queue_error_does_not_retry(self):

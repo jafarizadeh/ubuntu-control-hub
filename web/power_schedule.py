@@ -34,7 +34,12 @@ class PowerSchedule:
         return db
 
     def _expire(self,db,now):
-        db.execute("UPDATE power_schedule SET state='expired',detail='Timer missed the safe dispatch window' "
+        # A failed readiness probe at the exact timer boundary must not
+        # irreversibly reject a request while fresh signed telemetry is about
+        # to arrive (default Agent interval: 10 seconds). Keep a strictly
+        # bounded 30-second verification grace, then fail closed.
+        db.execute("UPDATE power_schedule SET state='blocked',detail="
+                   "'Fresh Ubuntu safety could not be confirmed within the 30-second final verification window' "
                    "WHERE state='armed' AND deadline<?",(now-30,))
         # Delivery does not prove the machine actually powered off. After
         # a bounded observation window, expose the unverified outcome and
@@ -111,10 +116,13 @@ class PowerSchedule:
                        "WHERE slot=1 AND token=? AND state='armed'",(expected,))
             return self._status(db,int(time.time()))
 
-    def dispatch_due(self,ready,enqueue):
+    def dispatch_due(self,ready,enqueue,*,definitive_block=False):
         """Called only by the Pi after a valid signed Ubuntu Agent report.
 
-        Crash after a 'dispatching' reservation means no retry. Fail-closed.
+        At the deadline, a transient unready observation waits at most 30s
+        for the next fresh signed report; a positive Atlas/job hard blocker
+        aborts immediately. No report can dispatch past the grace deadline.
+        A crash after 'dispatching' will never retry.
         """
         now=int(time.time())
         with self.lock, closing(self._connect()) as db, db:
@@ -128,9 +136,14 @@ class PowerSchedule:
             if row[2] < now-30:
                 return self._status(db,now)
             if ready is not True:
-                db.execute("UPDATE power_schedule SET state='blocked',detail="
-                           "'Current signed Ubuntu safety state did not authorize power' "
-                           "WHERE slot=1 AND token=?",(row[0],))
+                if definitive_block is True:
+                    db.execute("UPDATE power_schedule SET state='blocked',detail="
+                               "'Atlas resumed or active work was reported; shutdown canceled' "
+                               "WHERE slot=1 AND token=?",(row[0],))
+                else:
+                    db.execute("UPDATE power_schedule SET detail="
+                               "'Waiting for fresh signed Ubuntu safety evidence (max 30 seconds after deadline)' "
+                               "WHERE slot=1 AND token=?",(row[0],))
                 return self._status(db,now)
             db.execute("UPDATE power_schedule SET state='dispatching',detail="
                        "'Atomic at-most-once delivery reservation' WHERE slot=1 AND token=?",

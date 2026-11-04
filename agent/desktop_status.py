@@ -16,6 +16,7 @@ import time
 
 from power_safety import collect_power_safety
 from cpu_monitor import CPUActivitySampler, sample_once
+from desktop_actions import inspect as inspect_desktop_actions
 
 SCHEMA_VERSION = 1
 
@@ -338,6 +339,7 @@ def collect_status(cpu_sampler: CPUActivitySampler | None = None) -> dict:
         "audio": audio_status(),
         "network": network_status(),
         "workload_manager": workload_manager_status(),
+        "desktop_actions": inspect_desktop_actions(),
         "power_safety": collect_power_safety(),
     }
 
