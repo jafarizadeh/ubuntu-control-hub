@@ -154,7 +154,9 @@ class GUIClassificationTests(unittest.TestCase):
         record.assert_called_once_with("close-terminals",1,0,True)
 
     def test_open_gpt_remote_is_fixed_ptyxis_launch_not_shell(self):
-        with mock.patch.object(actions.subprocess,"Popen",
+        with mock.patch.object(actions,"_terminal_executable",
+             return_value=Path("/usr/bin/ptyxis")),\
+             mock.patch.object(actions.subprocess,"Popen",
              return_value=mock.Mock(pid=4400)) as popen,\
              mock.patch.object(actions,"_write_receipt"):
             result=actions.run("start-gpt-remote")

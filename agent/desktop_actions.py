@@ -243,6 +243,14 @@ def _write_receipt(action, requested, remaining, completed):
             os.unlink(name)
 
 
+def _terminal_executable():
+    """Allow only the installed fixed GNOME Ptyxis binary."""
+    terminal=Path("/usr/bin/ptyxis")
+    if not terminal.is_file() or terminal.is_symlink():
+        raise RuntimeError("Ptyxis terminal is not available")
+    return terminal
+
+
 def run(action):
     if action not in ACTIONS:
         raise ValueError("Unsupported desktop action")
@@ -271,9 +279,7 @@ def run(action):
 
     # Only a fixed, local, installed terminal is launched. No commands from
     # the phone are passed through to a shell.
-    terminal = Path("/usr/bin/ptyxis")
-    if not terminal.is_file() or terminal.is_symlink():
-        raise RuntimeError("Ptyxis terminal is not available")
+    terminal = _terminal_executable()
     if action == "open-terminal":
         args = [str(terminal), "--new-window"]
     elif action == "start-gpt-remote":
